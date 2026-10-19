@@ -2,87 +2,39 @@
 import { useState } from "react";
 import styles from "../dashboard.module.css";
 import DashboardSidebar from "@/components/DashboardSidebar/DashboardSidebar";
+import { api } from "@/lib/api";
 
-const SAMPLE_RESUME_TEXT = `John Doe
-Email: john.doe@example.com | Phone: +91 98765 43210 | Bengaluru, India
-GitHub: github.com/johndoe | LinkedIn: linkedin.com/in/johndoe
 
-EDUCATION
-National Institute of Technology, Karnataka (NITK)
-B.Tech in Computer Science and Engineering | CGPA: 8.8 / 10 | 2022 - 2026
-
-TECHNICAL SKILLS
-Languages: Python, JavaScript, Java, C++, SQL
-Frameworks & Libraries: React, Node.js, Express, PyTorch, Pandas, FastAPI
-DevOps & Tools: Git, Docker, Linux, Postman, PostgreSQL, Redis
-
-EXPERIENCE
-Software Engineering Intern | TechCorp India | June 2025 - Aug 2025
-- Worked on backend REST APIs using Node.js and Express for user management.
-- Improved database queries in PostgreSQL, reducing query latency by 32%.
-- Collaborated with 4 cross-functional team members to implement CI/CD test automation.
-
-PROJECTS
-AI Career & Education Advisor (PathFinder)
-- Developed a full-stack platform utilizing Next.js, Express microservices, and Neon PostgreSQL.
-- Implemented intelligent ATS resume scoring algorithms and automated roadmap generation.
-- Optimized API gateway request forwarding to sustain 500+ concurrent requests.
-
-Open-Source Distributed Cache
-- Built an in-memory key-value cache in Python with LRU eviction policy handling 10,000 ops/sec.`;
 
 export default function ResumePage() {
-  const [targetRole, setTargetRole] = useState("Full Stack Developer");
-  const [resumeText, setResumeText] = useState(SAMPLE_RESUME_TEXT);
+  const [targetRole, setTargetRole] = useState("full stack developer");
+  const [resumeText, setResumeText] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
-  const [results, setResults] = useState({
-    atsScore: 84,
-    keywordsScore: 82,
-    verbsScore: 80,
-    impactScore: 90,
-    formattingScore: 100,
-    matchedKeywords: ["javascript", "react", "node.js", "express", "postgresql", "rest api", "git"],
-    missingKeywords: ["typescript", "mongodb", "tailwind css", "system design"],
-    bulletBefore: "Worked on backend REST APIs using Node.js and Express.",
-    bulletAfter: "Architected scalable backend REST APIs using Node.js and Express, improving data throughput by 32% across 10k daily requests."
-  });
-
+  const [results, setResults] = useState({ atsScore: 0, keywordsScore: 0, verbsScore: 0, impactScore: 0, formattingScore: 0, matchedKeywords: [], missingKeywords: [], feedback: null });
+  const [error, setError] = useState("");
   const [inputBullet, setInputBullet] = useState("Responsible for building React frontend components.");
   const [enhancedBullet, setEnhancedBullet] = useState("");
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     setAnalyzing(true);
-    setTimeout(() => {
-      // Calculate dynamic score based on text length & keywords
-      const lower = resumeText.toLowerCase();
-      const keywords = ["javascript", "react", "node.js", "express", "postgresql", "python", "docker", "sql", "git", "api"];
-      const matched = keywords.filter((k) => lower.includes(k));
-      const missing = keywords.filter((k) => !lower.includes(k));
-      const score = Math.min(95, Math.max(50, matched.length * 9 + 15));
-
-      setResults({
-        atsScore: score,
-        keywordsScore: Math.round((matched.length / keywords.length) * 100),
-        verbsScore: 85,
-        impactScore: 80,
-        formattingScore: 95,
-        matchedKeywords: matched,
-        missingKeywords: missing,
-        bulletBefore: "Worked on backend REST APIs using Node.js and Express.",
-        bulletAfter: "Architected high-throughput backend REST APIs using Node.js and Express, decreasing API latency by 32%."
-      });
-      setAnalyzing(false);
-    }, 600);
+    setError("");
+    try {
+      const response = await api.analyzeResume({ resumeText, targetRole });
+      const data = response.data;
+      setResults({ atsScore: data.atsScore, keywordsScore: data.breakdown.keywordsScore, verbsScore: data.breakdown.verbsScore, impactScore: data.breakdown.impactScore, formattingScore: data.breakdown.formattingScore, matchedKeywords: data.matchedKeywords, missingKeywords: data.missingKeywords, feedback: data.feedback });
+    } catch (analysisError) {
+      setError(analysisError.message || "Could not analyze this resume.");
+    } finally { setAnalyzing(false); }
   };
 
-  const handleEnhanceBullet = () => {
+  const handleEnhanceBullet = async () => {
     if (!inputBullet.trim()) return;
-    const clean = inputBullet.replace(/^(responsible for|worked on|helped with)\s*/i, "");
-    setEnhancedBullet(
-      `Spearheaded ${clean}, driving a 28% increase in interface responsiveness and eliminating client-side rendering bottlenecks.`
-    );
+    setError("");
+    try {
+      const response = await api.enhanceBullet(inputBullet);
+      setEnhancedBullet(response.data.enhancedBullet || response.data.enhanced || "");
+    } catch (enhanceError) { setError(enhanceError.message || "Could not enhance this bullet."); }
   };
-
   return (
     <div className={styles.dashboard}>
       <DashboardSidebar />
@@ -95,6 +47,7 @@ export default function ResumePage() {
           </div>
         </header>
 
+        {error && <p role="alert" style={{ color: "#b91c1c" }}>{error}</p>}
         <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "28px" }}>
           {/* Left Column: Input and Target Role */}
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -117,11 +70,11 @@ export default function ResumePage() {
                     outline: "none"
                   }}
                 >
-                  <option>Full Stack Developer</option>
-                  <option>AI / Machine Learning Engineer</option>
-                  <option>Software Engineer</option>
-                  <option>Cloud & DevOps Engineer</option>
-                  <option>Data Scientist</option>
+                  <option value="full stack developer">Full Stack Developer</option>
+                  <option value="ai / ml engineer">AI / Machine Learning Engineer</option>
+                  <option value="software engineer">Software Engineer</option>
+                  <option value="cloud & devops engineer">Cloud & DevOps Engineer</option>
+                  <option value="data scientist">Data Scientist</option>
                 </select>
               </div>
 
@@ -129,13 +82,6 @@ export default function ResumePage() {
                 <label style={{ fontSize: "0.875rem", fontWeight: 500, color: "var(--text-secondary)" }}>
                   Paste Resume Content
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setResumeText(SAMPLE_RESUME_TEXT)}
-                  style={{ background: "none", border: "none", color: "var(--primary-600)", fontSize: "0.8125rem", cursor: "pointer", fontWeight: 600 }}
-                >
-                  Load Sample Resume
-                </button>
               </div>
 
               <textarea

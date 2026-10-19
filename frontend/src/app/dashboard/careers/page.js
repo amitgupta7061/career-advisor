@@ -1,90 +1,84 @@
 "use client";
-import { useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { api } from "@/lib/api";
 import styles from "../dashboard.module.css";
 import DashboardSidebar from "@/components/DashboardSidebar/DashboardSidebar";
 
-const SAMPLE_CAREERS = [
-  {
-    id: 1,
-    title: "AI / Machine Learning Engineer",
-    domain: "Artificial Intelligence",
-    icon: "🤖",
-    matchScore: 94,
-    salary: "₹14 - 35 LPA",
-    growth: "+45% YoY",
-    description: "Design, build, and deploy production machine learning pipelines, fine-tuned LLMs, and intelligent automation systems.",
-    requiredSkills: ["Python", "PyTorch", "Machine Learning", "Mathematics", "Docker", "FastAPI"],
-    userHas: ["Python", "Machine Learning", "FastAPI"],
-    missing: ["PyTorch", "Docker", "Mathematics"],
-  },
-  {
-    id: 2,
-    title: "Full Stack Developer",
-    domain: "Software Engineering",
-    icon: "🌐",
-    matchScore: 89,
-    salary: "₹8 - 25 LPA",
-    growth: "+28% YoY",
-    description: "Engineer resilient web architectures from responsive Next.js user interfaces to distributed microservice backends.",
-    requiredSkills: ["JavaScript", "React", "Node.js", "PostgreSQL", "System Design", "Docker"],
-    userHas: ["JavaScript", "React", "Node.js", "PostgreSQL"],
-    missing: ["System Design", "Docker"],
-  },
-  {
-    id: 3,
-    title: "Cloud & DevOps Engineer",
-    domain: "Infrastructure & Cloud",
-    icon: "☁️",
-    matchScore: 82,
-    salary: "₹10 - 28 LPA",
-    growth: "+38% YoY",
-    description: "Architect automated CI/CD deployment pipelines, container orchestration with Kubernetes, and high-availability AWS cloud topology.",
-    requiredSkills: ["AWS", "Docker", "Kubernetes", "Linux", "CI/CD", "Terraform"],
-    userHas: ["Linux", "Docker", "CI/CD"],
-    missing: ["AWS", "Kubernetes", "Terraform"],
-  },
-  {
-    id: 4,
-    title: "Data Scientist",
-    domain: "Data & Analytics",
-    icon: "📊",
-    matchScore: 78,
-    salary: "₹10 - 26 LPA",
-    growth: "+32% YoY",
-    description: "Derive strategic business insights through statistical modeling, predictive analytics, and enterprise data visualization.",
-    requiredSkills: ["Python", "SQL", "Pandas", "Statistics", "Machine Learning", "Tableau"],
-    userHas: ["Python", "SQL", "Pandas"],
-    missing: ["Statistics", "Machine Learning", "Tableau"],
-  },
-  {
-    id: 5,
-    title: "Cyber Security Analyst",
-    domain: "Information Security",
-    icon: "🛡️",
-    matchScore: 68,
-    salary: "₹9 - 24 LPA",
-    growth: "+35% YoY",
-    description: "Protect enterprise digital assets through vulnerability assessments, penetration testing, and security incident response.",
-    requiredSkills: ["Network Security", "Linux", "Python", "Wireshark", "OWASP", "SIEM"],
-    userHas: ["Linux", "Python"],
-    missing: ["Network Security", "Wireshark", "OWASP", "SIEM"],
-  },
-];
-
 export default function CareersPage() {
+  const router = useRouter();
+  const [roles, setRoles] = useState([]);
   const [selectedDomain, setSelectedDomain] = useState("All");
   const [search, setSearch] = useState("");
-  const [activeRole, setActiveRole] = useState(SAMPLE_CAREERS[0]);
+  const [activeRole, setActiveRole] = useState({ id: null, title: "", icon: "🧭", matchScore: 0, salary: "", growth: "", requiredSkills: [], userHas: [], missing: [] });
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState("");
 
-  const domains = ["All", "Software Engineering", "Artificial Intelligence", "Infrastructure & Cloud", "Data & Analytics", "Information Security"];
+  useEffect(() => {
+    let isCurrent = true;
+    async function loadRoles() {
+      try {
+        const response = await api.getCareerRoles();
+        const roleData = response.data || [];
+        let recommendations = [];
+        try {
+          const recommendationResponse = await api.getRecommendations({});
+          recommendations = recommendationResponse.data?.recommendations || [];
+        } catch {
+          // Role browsing remains available before a student has added profile skills.
+        }
+        const mappedRoles = roleData.map((role) => {
+          const recommendation = recommendations.find((item) => item.roleId === role.id);
+          const minSalary = Math.round((role.avg_salary_min || 0) / 100000);
+          const maxSalary = Math.round((role.avg_salary_max || 0) / 100000);
+          return {
+            ...role,
+            domain: role.category || "Other",
+            icon: role.category?.includes("AI") ? "🤖" : role.category?.includes("Infrastructure") ? "☁️" : role.category?.includes("Design") ? "🎨" : "🌐",
+            matchScore: recommendation?.matchScore || 0,
+            salary: minSalary || maxSalary ? `₹${minSalary} - ${maxSalary} LPA` : "Salary not listed",
+            growth: role.growth_rate || "Not listed",
+            requiredSkills: role.required_skills || [],
+            userHas: recommendation?.matchedSkills || [],
+            missing: recommendation?.missingSkills || role.required_skills || [],
+          };
+        });
+        if (isCurrent) {
+          setRoles(mappedRoles);
+          if (mappedRoles.length) setActiveRole(mappedRoles[0]);
+        }
+      } catch (loadError) {
+        if (isCurrent) setError(loadError.message || "Could not load career roles.");
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    }
+    loadRoles();
+    return () => { isCurrent = false; };
+  }, []);
 
-  const filtered = SAMPLE_CAREERS.filter((c) => {
-    const matchesDomain = selectedDomain === "All" || c.domain === selectedDomain;
-    const matchesSearch = c.title.toLowerCase().includes(search.toLowerCase()) || c.description.toLowerCase().includes(search.toLowerCase());
+  const domains = ["All", ...new Set(roles.map((role) => role.domain))];
+  const filtered = roles.filter((role) => {
+    const matchesDomain = selectedDomain === "All" || role.domain === selectedDomain;
+    const matchesSearch = role.title.toLowerCase().includes(search.toLowerCase()) || (role.description || "").toLowerCase().includes(search.toLowerCase());
     return matchesDomain && matchesSearch;
   });
 
+  async function generateRoadmap() {
+    if (!activeRole.id) return;
+    setGenerating(true);
+    setError("");
+    try {
+      await api.analyzeSkillGaps({ roleId: activeRole.id });
+      await api.generateRoadmap({ roleId: activeRole.id, roleTitle: activeRole.title });
+      router.push("/dashboard/roadmap");
+    } catch (generationError) {
+      setError(generationError.message || "Could not generate a learning roadmap.");
+    } finally {
+      setGenerating(false);
+    }
+  }
   return (
     <div className={styles.dashboard}>
       <DashboardSidebar />
@@ -143,6 +137,9 @@ export default function CareersPage() {
         <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px" }}>
           {/* Roles List */}
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            {loading && <p>Loading career roles…</p>}
+            {error && <p role="alert">{error}</p>}
+            {!loading && !filtered.length && <p>No career roles match your search.</p>}
             {filtered.map((role) => {
               const isSelected = activeRole.id === role.id;
               return (
@@ -246,24 +243,28 @@ export default function CareersPage() {
               ))}
             </div>
 
-            <Link
-              href="/dashboard/roadmap"
+            <button
+              type="button"
+              onClick={generateRoadmap}
+              disabled={generating || !activeRole.id}
               style={{
                 display: "block",
+                width: "100%",
                 textAlign: "center",
                 padding: "14px 20px",
                 borderRadius: "12px",
+                border: "none",
                 background: "linear-gradient(135deg, var(--primary-600), var(--primary-700))",
                 color: "#ffffff",
                 fontWeight: 600,
                 fontSize: "0.9375rem",
-                textDecoration: "none",
+                cursor: generating ? "wait" : "pointer",
                 boxShadow: "0 4px 14px rgba(99, 102, 241, 0.35)",
                 transition: "all 0.2s ease"
               }}
             >
-              Generate AI Learning Roadmap →
-            </Link>
+              {generating ? "Generating roadmap…" : "Generate AI Learning Roadmap →"}
+            </button>
           </div>
         </div>
       </main>

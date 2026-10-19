@@ -1,88 +1,45 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { api } from "@/lib/api";
 import styles from "../dashboard.module.css";
 import DashboardSidebar from "@/components/DashboardSidebar/DashboardSidebar";
 
-const INITIAL_STEPS = [
-  {
-    id: 1,
-    stepOrder: 1,
-    title: "Master Core Python & Object-Oriented Design",
-    description: "Deep dive into OOP, list comprehensions, decorators, generators, and async programming in Python.",
-    type: "course",
-    platform: "freeCodeCamp",
-    courseUrl: "https://freecodecamp.org",
-    durationHrs: 25,
-    status: "completed",
-    skill: "Python",
-  },
-  {
-    id: 2,
-    stepOrder: 2,
-    title: "Build RESTful APIs with FastAPI & PostgreSQL",
-    description: "Implement relational data modeling, migrations, authentication JWTs, and Pydantic request validation.",
-    type: "course",
-    platform: "Coursera / DeepLearning.AI",
-    courseUrl: "https://coursera.org",
-    durationHrs: 30,
-    status: "completed",
-    skill: "FastAPI & SQL",
-  },
-  {
-    id: 3,
-    stepOrder: 3,
-    title: "Deep Learning Foundations with PyTorch",
-    description: "Tensors, autograd, CNNs, Transformers, and training neural networks from scratch on GPUs.",
-    type: "course",
-    platform: "DeepLearning.AI",
-    courseUrl: "https://deeplearning.ai",
-    durationHrs: 40,
-    status: "in_progress",
-    skill: "PyTorch",
-  },
-  {
-    id: 4,
-    stepOrder: 4,
-    title: "Containerize & Deploy with Docker & Kubernetes",
-    description: "Write production multi-stage Dockerfiles, configure Kubernetes pods, ingress controllers, and secrets.",
-    type: "course",
-    platform: "Udemy",
-    courseUrl: "https://udemy.com",
-    durationHrs: 20,
-    status: "pending",
-    skill: "Docker",
-  },
-  {
-    id: 5,
-    stepOrder: 5,
-    title: "Capstone Project: Production Multimodal AI Assistant",
-    description: "Architect and deploy an end-to-end full-stack AI application with vector database retrieval (RAG) and Next.js frontend.",
-    type: "project",
-    platform: "GitHub Hands-on",
-    courseUrl: "https://github.com",
-    durationHrs: 35,
-    status: "pending",
-    skill: "Capstone Project",
-  },
-];
-
 export default function RoadmapPage() {
-  const [steps, setSteps] = useState(INITIAL_STEPS);
+  const [roadmap, setRoadmap] = useState(null);
+  const [steps, setSteps] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const toggleStep = (id) => {
-    setSteps((prev) =>
-      prev.map((step) => {
-        if (step.id === id) {
-          const nextStatus = step.status === "completed" ? "pending" : step.status === "in_progress" ? "completed" : "in_progress";
-          return { ...step, status: nextStatus };
-        }
-        return step;
-      })
-    );
-  };
+  useEffect(() => {
+    let active = true;
+    async function loadRoadmap() {
+      try {
+        const response = await api.getUserRoadmaps();
+        const latest = (response.data || [])[0];
+        if (!latest) return;
+        const detail = await api.getRoadmapDetail(latest.id);
+        if (!active) return;
+        setRoadmap(detail.data);
+        setSteps((detail.data.steps || []).map((step) => ({ ...step, stepOrder: step.step_order, type: step.resource_type, platform: step.platform || "Self-guided", courseUrl: step.course_url, durationHrs: Number(step.estimated_hrs || 0) })));
+      } catch (loadError) { if (active) setError(loadError.message || "Could not load your roadmap."); }
+      finally { if (active) setLoading(false); }
+    }
+    loadRoadmap();
+    return () => { active = false; };
+  }, []);
 
+  async function toggleStep(id) {
+    const step = steps.find((item) => item.id === id);
+    if (!step || !roadmap) return;
+    const nextStatus = step.status === "completed" ? "pending" : step.status === "in_progress" ? "completed" : "in_progress";
+    try {
+      await api.updateStepStatus(roadmap.id, step.id, nextStatus);
+      setSteps((previous) => previous.map((item) => item.id === id ? { ...item, status: nextStatus } : item));
+    } catch (updateError) { setError(updateError.message || "Could not update this milestone."); }
+  }
   const completedCount = steps.filter((s) => s.status === "completed").length;
-  const progressPercent = Math.round((completedCount / steps.length) * 100);
+  const progressPercent = steps.length ? Math.round((completedCount / steps.length) * 100) : 0;
   const totalHours = steps.reduce((acc, curr) => acc + curr.durationHrs, 0);
 
   return (
@@ -93,11 +50,11 @@ export default function RoadmapPage() {
         <header className={styles.topBar}>
           <div>
             <h1 className={styles.pageTitle}>Personalized Learning Roadmap 📚</h1>
-            <p className={styles.pageSubtitle}>Curated milestone path to bridge your skill gaps for <strong>AI / ML Engineer</strong></p>
+            <p className={styles.pageSubtitle}>Curated milestone path to bridge your skill gaps for <strong>{roadmap?.role_title || roadmap?.title || "your career goal"}</strong></p>
           </div>
         </header>
 
-        {/* Overview Banner */}
+        {error && <p role="alert">{error}</p>}{loading && <p>Loading your roadmap…</p>}{!loading && !roadmap && <p>No roadmap yet. Choose a career path to generate one. <Link href="/dashboard/careers">Explore careers</Link></p>}{/* Overview Banner */}
         <div style={{
           padding: "24px",
           borderRadius: "16px",
@@ -109,7 +66,7 @@ export default function RoadmapPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
             <div>
               <span style={{ fontSize: "0.8125rem", textTransform: "uppercase", letterSpacing: "0.05em", opacity: 0.9 }}>Active Pathway</span>
-              <h2 style={{ margin: "4px 0 0 0", fontSize: "1.5rem" }}>AI & Machine Learning Engineer Specialization</h2>
+              <h2 style={{ margin: "4px 0 0 0", fontSize: "1.5rem" }}>{roadmap?.title || "Your learning roadmap"}</h2>
             </div>
             <div style={{ textAlign: "right" }}>
               <span style={{ fontSize: "1.75rem", fontWeight: 700 }}>{progressPercent}%</span>
@@ -123,7 +80,7 @@ export default function RoadmapPage() {
 
           <div style={{ display: "flex", gap: "24px", marginTop: "16px", fontSize: "0.875rem" }}>
             <span>⏱️ Estimated Total Time: <strong>{totalHours} Hours</strong></span>
-            <span>🎯 5 Step Milestones</span>
+            <span>🎯 {steps.length} Step Milestones</span>
             <span>⭐ Industry-Aligned Curriculum</span>
           </div>
         </div>
@@ -214,7 +171,7 @@ export default function RoadmapPage() {
                     {isCompleted ? "Completed ✓" : isInProgress ? "Mark Done" : "Start Step"}
                   </button>
                   <a
-                    href={step.courseUrl}
+                    href={step.courseUrl || "#"}
                     target="_blank"
                     rel="noreferrer"
                     style={{ fontSize: "0.8125rem", color: "var(--primary-600)", textDecoration: "none", fontWeight: 500 }}

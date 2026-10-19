@@ -1,129 +1,93 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "../dashboard.module.css";
 import DashboardSidebar from "@/components/DashboardSidebar/DashboardSidebar";
-
-const INITIAL_OPPORTUNITIES = [
-  {
-    id: 1,
-    title: "Software Development Engineer Intern",
-    company: "Flipkart",
-    type: "internship",
-    location: "Bengaluru, Karnataka",
-    isRemote: false,
-    stipend: "₹65,000 / month",
-    skills: ["Java", "Data Structures", "Algorithms", "SQL", "Git"],
-    matchScore: 92,
-    deadline: "Dec 31, 2026",
-    applyUrl: "https://flipkartcareers.com",
-    bookmarked: false,
-    applied: false,
-  },
-  {
-    id: 2,
-    title: "Frontend Engineer (React / Next.js)",
-    company: "Swiggy",
-    type: "job",
-    location: "Bengaluru, Karnataka",
-    isRemote: true,
-    stipend: "14 - 18 LPA",
-    skills: ["JavaScript", "React", "TypeScript", "HTML5", "CSS3"],
-    matchScore: 88,
-    deadline: "Nov 30, 2026",
-    applyUrl: "https://careers.swiggy.com",
-    bookmarked: true,
-    applied: false,
-  },
-  {
-    id: 3,
-    title: "AI / ML Research Intern",
-    company: "Microsoft Research India",
-    type: "internship",
-    location: "Bengaluru, Karnataka",
-    isRemote: false,
-    stipend: "₹80,000 / month",
-    skills: ["Python", "PyTorch", "Machine Learning", "Mathematics"],
-    matchScore: 95,
-    deadline: "Dec 15, 2026",
-    applyUrl: "https://careers.microsoft.com",
-    bookmarked: false,
-    applied: true,
-  },
-  {
-    id: 4,
-    title: "Smart India Hackathon 2026",
-    company: "Ministry of Education & AICTE",
-    type: "hackathon",
-    location: "Pan-India",
-    isRemote: true,
-    stipend: "₹1,00,000 Prize",
-    skills: ["Full Stack", "Problem Solving", "AI/ML", "Teamwork"],
-    matchScore: 85,
-    deadline: "Oct 31, 2026",
-    applyUrl: "https://sih.gov.in",
-    bookmarked: false,
-    applied: false,
-  },
-  {
-    id: 5,
-    title: "Associate Cloud & DevOps Engineer",
-    company: "Zomato",
-    type: "job",
-    location: "Gurugram, Haryana",
-    isRemote: false,
-    stipend: "12 - 16 LPA",
-    skills: ["AWS", "Docker", "Kubernetes", "Linux", "CI/CD"],
-    matchScore: 78,
-    deadline: "Nov 25, 2026",
-    applyUrl: "https://zomato.com/careers",
-    bookmarked: false,
-    applied: false,
-  },
-  {
-    id: 6,
-    title: "National Merit STEM Scholarship 2026",
-    company: "Tata Trusts Foundation",
-    type: "scholarship",
-    location: "Pan-India",
-    isRemote: true,
-    stipend: "₹50,000 / year",
-    skills: ["Computer Science", "Engineering", "Merit"],
-    matchScore: 90,
-    deadline: "Nov 15, 2026",
-    applyUrl: "https://tatatrusts.org",
-    bookmarked: false,
-    applied: false,
-  },
-];
+import { api } from "@/lib/api";
 
 export default function OpportunitiesPage() {
-  const [opportunities, setOpportunities] = useState(INITIAL_OPPORTUNITIES);
+  const [opportunities, setOpportunities] = useState([]);
   const [activeTab, setActiveTab] = useState("all");
   const [remoteOnly, setRemoteOnly] = useState(false);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const toggleBookmark = (id) => {
-    setOpportunities((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, bookmarked: !o.bookmarked } : o))
-    );
-  };
+  useEffect(() => {
+    let isCurrent = true;
+    async function loadOpportunities() {
+      const results = await Promise.allSettled([
+        api.getOpportunities(),
+        api.getMatchingOpportunities(),
+        api.getBookmarks(),
+        api.getUserApplications(),
+      ]);
+      if (!isCurrent) return;
+      const opportunityResult = results[0];
+      if (opportunityResult.status === "rejected") {
+        setError(opportunityResult.reason.message || "Could not load opportunities.");
+        setLoading(false);
+        return;
+      }
+      const matchItems = results[1].status === "fulfilled" ? results[1].value.data || [] : [];
+      const bookmarkItems = results[2].status === "fulfilled" ? results[2].value.data || [] : [];
+      const applicationItems = results[3].status === "fulfilled" ? results[3].value.data || [] : [];
+      const matchById = new Map(matchItems.map((item) => [item.id, item.matchScore]));
+      const bookmarkedIds = new Set(bookmarkItems.map((item) => item.id));
+      const appliedIds = new Set(applicationItems.map((item) => item.opportunity_id));
+      const mapped = (opportunityResult.value.data || []).map((item) => ({
+        id: item.id,
+        title: item.title,
+        company: item.company,
+        type: item.opportunity_type,
+        location: item.location,
+        isRemote: item.is_remote,
+        stipend: item.stipend_or_ctc || "Compensation not listed",
+        skills: item.required_skills || [],
+        matchScore: matchById.get(item.id) || 0,
+        deadline: item.deadline ? new Date(item.deadline).toLocaleDateString() : "Not listed",
+        applyUrl: item.apply_url,
+        bookmarked: bookmarkedIds.has(item.id),
+        applied: appliedIds.has(item.id),
+      }));
+      setOpportunities(mapped);
+      setLoading(false);
+    }
+    loadOpportunities();
+    return () => { isCurrent = false; };
+  }, []);
 
-  const markApplied = (id) => {
-    setOpportunities((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, applied: true } : o))
-    );
-  };
+  async function toggleBookmark(id) {
+    const item = opportunities.find((opportunity) => opportunity.id === id);
+    if (!item) return;
+    setError("");
+    try {
+      if (item.bookmarked) await api.unbookmarkOpportunity(id);
+      else await api.bookmarkOpportunity(id);
+      setOpportunities((prev) => prev.map((opportunity) => opportunity.id === id ? { ...opportunity, bookmarked: !item.bookmarked } : opportunity));
+    } catch (actionError) {
+      setError(actionError.message || "Could not update bookmark.");
+    }
+  }
 
-  const filtered = opportunities.filter((o) => {
-    const matchesTab = activeTab === "all" || o.type === activeTab;
-    const matchesRemote = !remoteOnly || o.isRemote;
-    const matchesSearch =
-      o.title.toLowerCase().includes(search.toLowerCase()) ||
-      o.company.toLowerCase().includes(search.toLowerCase()) ||
-      o.skills.some((s) => s.toLowerCase().includes(search.toLowerCase()));
+  async function markApplied(id) {
+    setError("");
+    try {
+      await api.applyOpportunity(id);
+      setOpportunities((prev) => prev.map((opportunity) => opportunity.id === id ? { ...opportunity, applied: true } : opportunity));
+    } catch (actionError) {
+      setError(actionError.message || "Could not track this application.");
+    }
+  }
+
+  const filtered = opportunities.filter((opportunity) => {
+    const matchesTab = activeTab === "all" || opportunity.type === activeTab;
+    const matchesRemote = !remoteOnly || opportunity.isRemote;
+    const query = search.toLowerCase();
+    const matchesSearch = opportunity.title.toLowerCase().includes(query)
+      || opportunity.company.toLowerCase().includes(query)
+      || opportunity.skills.some((skill) => skill.toLowerCase().includes(query));
     return matchesTab && matchesRemote && matchesSearch;
   });
-
   return (
     <div className={styles.dashboard}>
       <DashboardSidebar />
@@ -194,6 +158,10 @@ export default function OpportunitiesPage() {
             Remote Only 🌐
           </label>
         </div>
+
+        {error && <p role="alert" style={{ color: "#b91c1c", marginBottom: "16px" }}>{error}</p>}
+        {loading && <p>Loading opportunities…</p>}
+        {!loading && filtered.length === 0 && <p>No opportunities match these filters.</p>}
 
         {/* Opportunities List */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: "20px" }}>
@@ -300,7 +268,7 @@ export default function OpportunitiesPage() {
                       Track Application
                     </button>
                   )}
-                  <a
+                                    {item.applyUrl && <a
                     href={item.applyUrl}
                     target="_blank"
                     rel="noreferrer"
@@ -316,7 +284,7 @@ export default function OpportunitiesPage() {
                     }}
                   >
                     Apply ↗
-                  </a>
+                  </a>}
                 </div>
               </div>
             </div>

@@ -67,7 +67,7 @@ async function generateRoadmap(req, res) {
     for (const gap of gaps) {
       // Find matching course
       const matchingCourses = await sql`
-        SELECT id, title, estimated_hrs FROM courses
+        SELECT id, title, duration_hrs FROM courses
         WHERE ${gap.skill_name} = ANY(skill_tags)
         ORDER BY rating DESC LIMIT 1
       `;
@@ -175,11 +175,19 @@ async function updateStepStatus(req, res) {
   try {
     const sql = getDb();
     const { status } = req.body;
+    const allowedStatuses = ["pending", "in_progress", "completed", "skipped"];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid roadmap step status." });
+    }
 
     const [step] = await sql`
       UPDATE roadmap_steps SET status = ${status},
         completed_at = ${status === "completed" ? new Date() : null}
       WHERE id = ${req.params.stepId} AND roadmap_id = ${req.params.roadmapId}
+        AND EXISTS (
+          SELECT 1 FROM learning_roadmaps
+          WHERE id = ${req.params.roadmapId} AND user_id = ${req.user.id}
+        )
       RETURNING *
     `;
 

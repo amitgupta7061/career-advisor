@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styles from "./dashboard.module.css";
 import DashboardSidebar from "@/components/DashboardSidebar/DashboardSidebar";
+import { api } from "@/lib/api";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState(null);
+  const [user] = useState(() => { try { return typeof window === "undefined" ? null : JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; } });
+  const [dashboardData, setDashboardData] = useState({ roleCount: 0, skillGaps: [], recommendations: [], opportunitiesCount: 0, resumeScore: null });
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -18,18 +20,38 @@ export default function DashboardPage() {
         router.push("/login?message=Please log in or create an account first to access your personalized dashboard.");
         return;
       }
-
-      if (storedUser) {
-        try {
-          setUser(JSON.parse(storedUser));
-        } catch (e) {
-          console.error("Failed to parse stored user", e);
-        }
-      }
     }
   }, [router]);
 
-  const handleLogout = () => {
+  useEffect(() => {
+    let isCurrent = true;
+    async function loadDashboardData() {
+      const results = await Promise.allSettled([
+        api.getCareerRoles(),
+        api.getRecommendations({}),
+        api.getSkillGaps(),
+        api.getOpportunities(),
+        api.getResumeHistory(),
+      ]);
+      if (!isCurrent) return;
+      setDashboardData({
+        roleCount: results[0].status === "fulfilled" ? (results[0].value.data || []).length : 0,
+        recommendations: results[1].status === "fulfilled" ? results[1].value.data?.recommendations || [] : [],
+        skillGaps: results[2].status === "fulfilled" ? results[2].value.data || [] : [],
+        opportunitiesCount: results[3].status === "fulfilled" ? results[3].value.count || 0 : 0,
+        resumeScore: results[4].status === "fulfilled" ? results[4].value.data?.[0]?.ats_score ?? null : null,
+      });
+    }
+    loadDashboardData();
+    return () => { isCurrent = false; };
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } catch {
+      // Clear the local session even when the gateway is unavailable.
+    }
     if (typeof window !== "undefined") {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
@@ -75,28 +97,28 @@ export default function DashboardPage() {
           <Link href="/dashboard/careers" className={styles.statCard}>
             <div className={styles.statIcon} style={{ background: "linear-gradient(135deg, #eef2ff, #e0e7ff)" }}>🎯</div>
             <div className={styles.statInfo}>
-              <span className={styles.statValue}>10</span>
+              <span className={styles.statValue}>{dashboardData.roleCount}</span>
               <span className={styles.statLabel}>Target Career Paths</span>
             </div>
           </Link>
           <Link href="/dashboard/roadmap" className={styles.statCard}>
             <div className={styles.statIcon} style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)" }}>📊</div>
             <div className={styles.statInfo}>
-              <span className={styles.statValue}>5</span>
+              <span className={styles.statValue}>{dashboardData.skillGaps.length}</span>
               <span className={styles.statLabel}>Skill Gaps to Close</span>
             </div>
           </Link>
           <Link href="/dashboard/resume" className={styles.statCard}>
             <div className={styles.statIcon} style={{ background: "linear-gradient(135deg, #d1fae5, #a7f3d0)" }}>📄</div>
             <div className={styles.statInfo}>
-              <span className={styles.statValue}>82%</span>
+              <span className={styles.statValue}>{dashboardData.resumeScore === null ? "—" : `${dashboardData.resumeScore}%`}</span>
               <span className={styles.statLabel}>Resume ATS Score</span>
             </div>
           </Link>
           <Link href="/dashboard/opportunities" className={styles.statCard}>
             <div className={styles.statIcon} style={{ background: "linear-gradient(135deg, #fce7f3, #fbcfe8)" }}>💼</div>
             <div className={styles.statInfo}>
-              <span className={styles.statValue}>8+</span>
+              <span className={styles.statValue}>{dashboardData.opportunitiesCount}</span>
               <span className={styles.statLabel}>Live Opportunities</span>
             </div>
           </Link>
@@ -108,31 +130,18 @@ export default function DashboardPage() {
               <h2 className={styles.cardTitle} style={{ margin: 0 }}>Top Career Recommendations</h2>
               <Link href="/dashboard/careers" style={{ fontSize: "0.875rem", color: "var(--primary-600)", fontWeight: 600, textDecoration: "none" }}>View All →</Link>
             </div>
-            <div className={styles.careerList}>
-              <Link href="/dashboard/careers" className={styles.careerItem} style={{ textDecoration: "none" }}>
-                <span className={styles.careerEmoji}>🤖</span>
-                <div className={styles.careerInfo}>
-                  <h3>AI / Machine Learning Engineer</h3>
-                  <p>94% match · 14 - 35 LPA · High Demand</p>
-                </div>
-                <span className={styles.careerScore}>94%</span>
-              </Link>
-              <Link href="/dashboard/careers" className={styles.careerItem} style={{ textDecoration: "none" }}>
-                <span className={styles.careerEmoji}>🌐</span>
-                <div className={styles.careerInfo}>
-                  <h3>Full Stack Developer</h3>
-                  <p>89% match · 8 - 25 LPA · 12k+ Openings</p>
-                </div>
-                <span className={styles.careerScore}>89%</span>
-              </Link>
-              <Link href="/dashboard/careers" className={styles.careerItem} style={{ textDecoration: "none" }}>
-                <span className={styles.careerEmoji}>☁️</span>
-                <div className={styles.careerInfo}>
-                  <h3>Cloud & DevOps Engineer</h3>
-                  <p>82% match · 10 - 28 LPA · Rapid Growth</p>
-                </div>
-                <span className={styles.careerScore}>82%</span>
-              </Link>
+                        <div className={styles.careerList}>
+              {dashboardData.recommendations.slice(0, 3).map((recommendation) => (
+                <Link key={recommendation.roleId} href="/dashboard/careers" className={styles.careerItem} style={{ textDecoration: "none" }}>
+                  <span className={styles.careerEmoji}>🎯</span>
+                  <div className={styles.careerInfo}>
+                    <h3>{recommendation.title}</h3>
+                    <p>{recommendation.matchScore}% match · {recommendation.demandLevel || "Demand not listed"}</p>
+                  </div>
+                  <span className={styles.careerScore}>{recommendation.matchScore}%</span>
+                </Link>
+              ))}
+              {dashboardData.recommendations.length === 0 && <p>Add skills to your profile to see career recommendations.</p>}
             </div>
           </div>
 
@@ -142,18 +151,15 @@ export default function DashboardPage() {
               <Link href="/dashboard/roadmap" style={{ fontSize: "0.875rem", color: "var(--primary-600)", fontWeight: 600, textDecoration: "none" }}>Start Learning →</Link>
             </div>
             <div className={styles.skillList}>
-              {[
-                { name: "Docker & Kubernetes", priority: "Critical", color: "#ef4444" },
-                { name: "System Design & Microservices", priority: "High", color: "#ef4444" },
-                { name: "PostgreSQL & Indexing", priority: "Medium", color: "#f59e0b" },
-                { name: "TypeScript & Next.js", priority: "Medium", color: "#f59e0b" },
-                { name: "CI/CD & GitHub Actions", priority: "Low", color: "#10b981" },
-              ].map((skill, i) => (
+              {dashboardData.skillGaps.slice(0, 5).map((gap, i) => {
+                const priority = gap.priority || "medium";
+                const color = priority === "critical" || priority === "high" ? "#ef4444" : priority === "medium" ? "#f59e0b" : "#10b981";
+                return (
                 <div key={i} className={styles.skillItem}>
-                  <span className={styles.skillName}>{skill.name}</span>
-                  <span className={styles.skillPriority} style={{ color: skill.color }}>{skill.priority}</span>
+                  <span className={styles.skillName}>{gap.skill_name}</span>
+                  <span className={styles.skillPriority} style={{ color }}>{priority}</span>
                 </div>
-              ))}
+                ); })}
             </div>
           </div>
         </div>

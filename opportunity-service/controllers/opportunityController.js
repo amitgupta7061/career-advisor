@@ -9,57 +9,41 @@ async function getOpportunities(req, res) {
     const sql = getDb();
     const { type, location, remote, search } = req.query;
 
-    let query = `SELECT * FROM opportunities WHERE 1=1`;
-    const params = [];
-
-    if (type) {
-      params.push(type);
-      query += ` AND opportunity_type = $${params.length}`;
+    const allowedTypes = ["job", "internship", "hackathon", "scholarship"];
+    if (type && !allowedTypes.includes(type)) {
+      return res.status(400).json({ success: false, message: "Invalid opportunity type." });
     }
-    if (location) {
-      params.push(`%${location}%`);
-      query += ` AND location ILIKE $${params.length}`;
+    if (remote !== undefined && remote !== "true" && remote !== "false") {
+      return res.status(400).json({ success: false, message: "Remote filter must be true or false." });
     }
-    if (remote === "true") {
-      query += ` AND is_remote = true`;
-    }
-    if (search) {
-      params.push(`%${search}%`);
-      query += ` AND (title ILIKE $${params.length} OR company ILIKE $${params.length} OR description ILIKE $${params.length})`;
+    if ([type, location, search].some((value) => value !== undefined && typeof value !== "string")) {
+      return res.status(400).json({ success: false, message: "Opportunity filters must be single text values." });
     }
 
-    query += ` ORDER BY created_at DESC`;
+    const typeFilter = type?.trim() || null;
+    const locationFilter = location?.trim() || null;
+    const searchFilter = search?.trim() || null;
+    const remoteFilter = remote === undefined ? null : remote === "true";
+    const searchPattern = searchFilter ? `%${searchFilter}%` : null;
 
-    // Execute with neon sql.unsafe or parameterized
-    // Neon tagged template fallback:
-    let opportunities;
-    if (type && remote === "true") {
-      opportunities = await sql`
-        SELECT * FROM opportunities 
-        WHERE opportunity_type = ${type} AND is_remote = true
-        ORDER BY created_at DESC
-      `;
-    } else if (type) {
-      opportunities = await sql`
-        SELECT * FROM opportunities 
-        WHERE opportunity_type = ${type}
-        ORDER BY created_at DESC
-      `;
-    } else if (remote === "true") {
-      opportunities = await sql`
-        SELECT * FROM opportunities 
-        WHERE is_remote = true
-        ORDER BY created_at DESC
-      `;
-    } else if (search) {
-      opportunities = await sql`
-        SELECT * FROM opportunities 
-        WHERE title ILIKE ${`%${search}%`} OR company ILIKE ${`%${search}%`}
-        ORDER BY created_at DESC
-      `;
-    } else {
-      opportunities = await sql`SELECT * FROM opportunities ORDER BY created_at DESC`;
-    }
+    const opportunities = await sql`
+      SELECT * FROM opportunities
+      WHERE (${typeFilter}::text IS NULL OR opportunity_type = ${typeFilter})
+        AND (${locationFilter}::text IS NULL OR location ILIKE ${locationFilter ? `%${locationFilter}%` : null})
+        AND (${remoteFilter}::boolean IS NULL OR is_remote = ${remoteFilter})
+        AND (
+          ${searchFilter}::text IS NULL
+          OR title ILIKE ${searchPattern}
+          OR company ILIKE ${searchPattern}
+          OR description ILIKE ${searchPattern}
+          OR EXISTS (
+            SELECT 1
+            FROM unnest(COALESCE(required_skills, ARRAY[]::text[])) AS required_skill
+            WHERE required_skill ILIKE ${searchPattern}
+          )
+        )
+      ORDER BY created_at DESC
+    `;
 
     res.json({ success: true, count: opportunities.length, data: opportunities });
   } catch (error) {
@@ -261,6 +245,10 @@ async function updateApplicationStatus(req, res) {
     const sql = getDb();
     const userId = req.user.id;
     const { status, notes } = req.body;
+    const allowedStatuses = ["applied", "in_review", "interviewing", "offered", "rejected"];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid application status." });
+    }
 
     const [app] = await sql`
       UPDATE opportunity_applications

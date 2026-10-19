@@ -1,4 +1,6 @@
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, ".env") });
+require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
@@ -7,7 +9,48 @@ const rateLimit = require("express-rate-limit");
 const { createProxyMiddleware } = require("http-proxy-middleware");
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT || process.env.API_GATEWAY_PORT || 5000);
+
+if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+  throw new Error("PORT must be an integer between 1 and 65535.");
+}
+
+const serviceProxies = [
+  { prefix: "/api/auth", envName: "AUTH_SERVICE_URL" },
+  { prefix: "/api/career", envName: "CAREER_AI_SERVICE_URL" },
+  { prefix: "/api/learning", envName: "LEARNING_SERVICE_URL" },
+  { prefix: "/api/opportunities", envName: "OPPORTUNITY_SERVICE_URL" },
+  { prefix: "/api/resume", envName: "RESUME_SERVICE_URL" },
+  { prefix: "/api/progress", envName: "PROGRESS_SERVICE_URL" },
+].map((service) => {
+  const target = process.env[service.envName]?.trim();
+  if (!target) {
+    throw new Error(`${service.envName} is required. Set it in api-gateway/.env.`);
+  }
+
+  let parsedTarget;
+  try {
+    parsedTarget = new URL(target);
+  } catch {
+    throw new Error(`${service.envName} must be a valid HTTP or HTTPS URL.`);
+  }
+  if (parsedTarget.protocol !== "http:" && parsedTarget.protocol !== "https:") {
+    throw new Error(`${service.envName} must use HTTP or HTTPS.`);
+  }
+
+  return { ...service, target };
+});
+
+const readPositiveInteger = (name, fallback) => {
+  const rawValue = process.env[name];
+  if (rawValue === undefined || rawValue.trim() === "") return fallback;
+
+  const value = Number(rawValue);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
+  }
+  return value;
+};
 
 // ─── Security Middleware ───────────────────────────────────────
 app.use(helmet());
@@ -22,8 +65,8 @@ app.use(
 
 // ─── Rate Limiting ─────────────────────────────────────────────
 const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 100,
+  windowMs: readPositiveInteger("RATE_LIMIT_WINDOW_MS", 15 * 60 * 1000),
+  max: readPositiveInteger("RATE_LIMIT_MAX", 100),
   message: {
     success: false,
     message: "Too many requests, please try again later.",
@@ -42,33 +85,22 @@ app.get("/health", (req, res) => {
     success: true,
     message: "API Gateway is running",
     timestamp: new Date().toISOString(),
-    services: {
-      auth: process.env.AUTH_SERVICE_URL,
-      careerAi: process.env.CAREER_AI_SERVICE_URL,
-      learning: process.env.LEARNING_SERVICE_URL,
-      opportunity: process.env.OPPORTUNITY_SERVICE_URL,
-      resume: process.env.RESUME_SERVICE_URL,
-      progress: process.env.PROGRESS_SERVICE_URL,
-    },
   });
 });
 
 // ─── Proxy Configuration ──────────────────────────────────────
-// Each route prefix is forwarded to the corresponding microservice.
-
-const proxyOptions = (target, pathRewrite) => ({
+// Express strips the mounted prefix from req.url, so restore it for the service.
+const proxyOptions = (target, servicePrefix) => ({
   target,
   changeOrigin: true,
-  pathRewrite,
+  pathRewrite: (path) => `${servicePrefix}${path}`,
   on: {
-    proxyReq: (proxyReq, req) => {
-      // Forward authorization header
-      if (req.headers.authorization) {
-        proxyReq.setHeader("Authorization", req.headers.authorization);
-      }
-    },
     error: (err, req, res) => {
-      console.error(`Proxy error for ${req.url}:`, err.message);
+      console.error(`Proxy error for ${req.originalUrl || req.url}:`, err.message);
+      if (res.headersSent || res.writableEnded) {
+        res.destroy(err);
+        return;
+      }
       res.status(502).json({
         success: false,
         message: "Service temporarily unavailable. Please try again later.",
@@ -77,63 +109,9 @@ const proxyOptions = (target, pathRewrite) => ({
   },
 });
 
-// Auth Service → /api/auth/*
-app.use(
-  "/api/auth",
-  createProxyMiddleware(
-    proxyOptions(process.env.AUTH_SERVICE_URL, { "^/api/auth": "/api/auth" })
-  )
-);
-
-// Career AI Service → /api/career/*
-app.use(
-  "/api/career",
-  createProxyMiddleware(
-    proxyOptions(process.env.CAREER_AI_SERVICE_URL, {
-      "^/api/career": "/api/career",
-    })
-  )
-);
-
-// Learning Service → /api/learning/*
-app.use(
-  "/api/learning",
-  createProxyMiddleware(
-    proxyOptions(process.env.LEARNING_SERVICE_URL, {
-      "^/api/learning": "/api/learning",
-    })
-  )
-);
-
-// Opportunity Service → /api/opportunities/*
-app.use(
-  "/api/opportunities",
-  createProxyMiddleware(
-    proxyOptions(process.env.OPPORTUNITY_SERVICE_URL, {
-      "^/api/opportunities": "/api/opportunities",
-    })
-  )
-);
-
-// Resume Service → /api/resume/*
-app.use(
-  "/api/resume",
-  createProxyMiddleware(
-    proxyOptions(process.env.RESUME_SERVICE_URL, {
-      "^/api/resume": "/api/resume",
-    })
-  )
-);
-
-// Progress Service → /api/progress/*
-app.use(
-  "/api/progress",
-  createProxyMiddleware(
-    proxyOptions(process.env.PROGRESS_SERVICE_URL, {
-      "^/api/progress": "/api/progress",
-    })
-  )
-);
+for (const { prefix, target } of serviceProxies) {
+  app.use(prefix, createProxyMiddleware(proxyOptions(target, prefix)));
+}
 
 // ─── 404 Handler ───────────────────────────────────────────────
 app.use("*", (req, res) => {
@@ -155,12 +133,9 @@ app.use((err, req, res, next) => {
 // ─── Start Server ──────────────────────────────────────────────
 app.listen(PORT, () => {
   console.log(`\n🚀 API Gateway running on http://localhost:${PORT}`);
-  console.log(`───────────────────────────────────────────────`);
-  console.log(`   Auth Service     → ${process.env.AUTH_SERVICE_URL}`);
-  console.log(`   Career AI Service→ ${process.env.CAREER_AI_SERVICE_URL}`);
-  console.log(`   Learning Service → ${process.env.LEARNING_SERVICE_URL}`);
-  console.log(`   Opportunity Svc  → ${process.env.OPPORTUNITY_SERVICE_URL}`);
-  console.log(`   Resume Service   → ${process.env.RESUME_SERVICE_URL}`);
-  console.log(`   Progress Service → ${process.env.PROGRESS_SERVICE_URL}`);
-  console.log(`───────────────────────────────────────────────\n`);
+  console.log("───────────────────────────────────────────────");
+  for (const { prefix, target } of serviceProxies) {
+    console.log(`   ${prefix.padEnd(20)} → ${target}`);
+  }
+  console.log("───────────────────────────────────────────────\n");
 });

@@ -45,6 +45,8 @@ async function initDatabase() {
       interests           TEXT[] DEFAULT '{}',
       career_goals        TEXT[] DEFAULT '{}',
       preferred_locations TEXT[] DEFAULT '{}',
+      projects            TEXT[] DEFAULT '{}',
+      certifications     TEXT[] DEFAULT '{}',
       github_url          VARCHAR(500),
       linkedin_url        VARCHAR(500),
       portfolio_url       VARCHAR(500),
@@ -53,6 +55,8 @@ async function initDatabase() {
       updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
+  await sql`ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS projects TEXT[] DEFAULT '{}'`;
+  await sql`ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS certifications TEXT[] DEFAULT '{}'`;
   console.log("  ✅ student_profiles table created");
 
   // Mentor profiles

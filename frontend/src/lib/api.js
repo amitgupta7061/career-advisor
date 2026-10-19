@@ -34,6 +34,7 @@ export const api = {
   register: (body) => request("/auth/register", { method: "POST", body: JSON.stringify(body) }),
   login: (body) => request("/auth/login", { method: "POST", body: JSON.stringify(body) }),
   getProfile: () => request("/auth/me"),
+  logout: () => request("/auth/logout", { method: "POST" }),
   updateProfile: (body) => request("/auth/profile", { method: "PUT", body: JSON.stringify(body) }),
 
   // Career AI

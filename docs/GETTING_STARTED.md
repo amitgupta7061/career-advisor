@@ -40,14 +40,23 @@ cd career-advisor
    UPSTASH_REDIS_REST_URL=https://your-database.upstash.io
    UPSTASH_REDIS_REST_TOKEN=your-token
 
-   # JWT Secret Key
-   JWT_SECRET=super_secret_career_advisor_jwt_key_2026
+   # JWT secrets (replace with long random values before deployment)
+   JWT_SECRET=replace-with-a-long-random-secret
+   JWT_REFRESH_SECRET=replace-with-a-different-long-random-secret
+   JWT_REFRESH_EXPIRES_IN=30d
 
-   # Frontend URL
+   # Frontend and gateway URLs
    FRONTEND_URL=http://localhost:3000
+   NEXT_PUBLIC_API_URL=http://localhost:5000/api
+   AUTH_SERVICE_URL=http://localhost:5001
+   CAREER_AI_SERVICE_URL=http://localhost:5002
+   LEARNING_SERVICE_URL=http://localhost:5003
+   OPPORTUNITY_SERVICE_URL=http://localhost:5004
+   RESUME_SERVICE_URL=http://localhost:5005
+   PROGRESS_SERVICE_URL=http://localhost:5006
    ```
 
-> 💡 **Tip:** Every microservice is pre-configured to automatically inherit credentials from this single root `.env` file. You don't need to configure 7 separate `.env` files manually.
+> 💡 **Tip:** Each backend service loads its own `.env` first and then fills any missing values from the root `.env`. The gateway reads its local `.env` first and uses the root file as a fallback. The frontend uses `NEXT_PUBLIC_API_URL` from the root environment when you configure it before starting Next.js.
 
 ---
 
@@ -88,7 +97,7 @@ You should see confirmation output:
 
 Open separate terminal tabs or windows in the root `career-advisor` directory:
 
-### 1. Start the Frontend (Next.js 14)
+### 1. Start the Frontend (Next.js)
 ```bash
 npm run frontend
 # Runs on http://localhost:3000

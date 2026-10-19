@@ -234,12 +234,19 @@ async function updateGoal(req, res) {
     const sql = getDb();
     const userId = req.user.id;
     const { isCompleted, title, targetDate } = req.body;
+    if (isCompleted !== undefined && typeof isCompleted !== "boolean") {
+      return res.status(400).json({ success: false, message: "isCompleted must be a boolean." });
+    }
 
     const [goal] = await sql`
       UPDATE user_goals
-      SET 
+      SET
         is_completed = COALESCE(${isCompleted}, is_completed),
-        completed_at = ${isCompleted ? new Date() : null},
+        completed_at = CASE
+          WHEN ${isCompleted} IS TRUE THEN COALESCE(completed_at, CURRENT_TIMESTAMP)
+          WHEN ${isCompleted} IS FALSE THEN NULL
+          ELSE completed_at
+        END,
         title = COALESCE(${title}, title),
         target_date = COALESCE(${targetDate}, target_date)
       WHERE id = ${req.params.id} AND user_id = ${userId}
@@ -282,10 +289,26 @@ async function getUserBadges(req, res) {
     const userId = req.user.id;
 
     // Check criteria and award badges if eligible
-    const [profile] = await sql`SELECT skills FROM student_profiles WHERE user_id = ${userId}`;
-    const skillsCount = (profile && profile.skills) ? profile.skills.length : 0;
+    const [profile] = await sql`SELECT skills, projects, certifications FROM student_profiles WHERE user_id = ${userId}`;
+    const skillsCount = profile?.skills?.length || 0;
+    const projectsCount = profile?.projects?.length || 0;
+    const certificationsCount = profile?.certifications?.length || 0;
 
     const [resume] = await sql`SELECT ats_score FROM resume_analyses WHERE user_id = ${userId} ORDER BY ats_score DESC LIMIT 1`;
+    const roadmaps = await sql`SELECT total_steps, completed_steps FROM learning_roadmaps WHERE user_id = ${userId}`;
+    const totalSteps = roadmaps.reduce((sum, roadmap) => sum + (roadmap.total_steps || 0), 0);
+    const doneSteps = roadmaps.reduce((sum, roadmap) => sum + (roadmap.completed_steps || 0), 0);
+    const learningScore = totalSteps ? Math.min(100, Math.round((doneSteps / totalSteps) * 100)) : 25;
+    const [applicationCount] = await sql`SELECT COUNT(*) AS count FROM opportunity_applications WHERE user_id = ${userId}`;
+    const appsCount = Number(applicationCount.count) || 0;
+    const skillsScore = Math.min(100, Math.round((skillsCount / 8) * 100));
+    const practicalProjectsScore = Math.min(100, Math.round(((projectsCount * 2 + certificationsCount) / 5) * 100));
+    const resumeScore = resume ? resume.ats_score : 50;
+    const opportunityScore = Math.min(100, 30 + appsCount * 15);
+    const readinessScore = Math.round(
+      skillsScore * 0.30 + practicalProjectsScore * 0.25 + resumeScore * 0.20 + learningScore * 0.15 + opportunityScore * 0.10
+    );
+
     const [completedSteps] = await sql`
       SELECT COUNT(*) as count FROM roadmap_steps rs
       JOIN learning_roadmaps lr ON rs.roadmap_id = lr.id
@@ -315,6 +338,22 @@ async function getUserBadges(req, res) {
       await sql`
         INSERT INTO user_badges (user_id, badge_code, badge_name, badge_icon, badge_description)
         VALUES (${userId}, 'FAST_LEARNER', 'Fast Learner', '⚡', 'Successfully completed your first roadmap learning module.')
+        ON CONFLICT (user_id, badge_code) DO NOTHING
+      `;
+    }
+
+    if (appsCount >= 3) {
+      await sql`
+        INSERT INTO user_badges (user_id, badge_code, badge_name, badge_icon, badge_description)
+        VALUES (${userId}, 'OPPORTUNITY_HUNTER', 'Opportunity Hunter', '💼', 'Submitted 3 or more job or internship applications.')
+        ON CONFLICT (user_id, badge_code) DO NOTHING
+      `;
+    }
+
+    if (readinessScore >= 85) {
+      await sql`
+        INSERT INTO user_badges (user_id, badge_code, badge_name, badge_icon, badge_description)
+        VALUES (${userId}, 'CAREER_READY', 'Career Ready Master', '🏆', 'Reached a career readiness score of 85 or higher.')
         ON CONFLICT (user_id, badge_code) DO NOTHING
       `;
     }

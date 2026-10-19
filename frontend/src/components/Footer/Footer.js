@@ -70,7 +70,7 @@ export default function Footer() {
         {/* Bottom Bar */}
         <div className={styles.footerBottom}>
           <p className={styles.copyright}>
-            © {new Date().getFullYear()} PathFinder AI. All rights reserved.
+            © 2026 PathFinder AI. All rights reserved.
           </p>
           <div className={styles.bottomLinks}>
             <Link href="#" className={styles.bottomLink}>Terms</Link>

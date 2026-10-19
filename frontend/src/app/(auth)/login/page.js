@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import styles from "../auth.module.css";
@@ -11,15 +11,7 @@ export default function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const msg = params.get("message");
-      if (msg) setNotice(msg);
-    }
-  }, []);
+  const [notice] = useState(() => typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("message") || "");
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

@@ -1,51 +1,85 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "../dashboard.module.css";
 import DashboardSidebar from "@/components/DashboardSidebar/DashboardSidebar";
-
-const INITIAL_GOALS = [
-  { id: 1, title: "Complete PyTorch Neural Network module", category: "learning", completed: true, targetDate: "Oct 22" },
-  { id: 2, title: "Add Docker containerization to portfolio project", category: "projects", completed: false, targetDate: "Oct 25" },
-  { id: 3, title: "Apply to Flipkart SDE Internship", category: "opportunities", completed: true, targetDate: "Oct 20" },
-  { id: 4, title: "Achieve ATS score > 85 on full-stack resume", category: "resume", completed: false, targetDate: "Oct 28" },
-];
-
-const BADGES = [
-  { code: "SKILL_EXPLORER", name: "Skill Explorer", icon: "🎯", desc: "Added 5+ verified technical skills", earned: true, date: "Oct 12" },
-  { code: "ATS_PRO", name: "ATS 75+ Club", icon: "📄", desc: "Achieved an ATS score of 84", earned: true, date: "Oct 15" },
-  { code: "FAST_LEARNER", name: "Fast Learner", icon: "⚡", desc: "Completed 2 roadmap milestones", earned: true, date: "Oct 18" },
-  { code: "OPPORTUNITY_HUNTER", name: "Opportunity Hunter", icon: "💼", desc: "Submitted first internship application", earned: true, date: "Oct 19" },
-  { code: "CAREER_READY", name: "Career Ready Master", icon: "🏆", desc: "Attain overall readiness >= 85", earned: false, date: "Locked" },
-];
+import { api } from "@/lib/api";
 
 export default function ProgressPage() {
-  const [goals, setGoals] = useState(INITIAL_GOALS);
+  const [readiness, setReadiness] = useState(null);
+  const [goals, setGoals] = useState([]);
+  const [badges, setBadges] = useState([]);
   const [newGoalTitle, setNewGoalTitle] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const toggleGoal = (id) => {
-    setGoals((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, completed: !g.completed } : g))
-    );
-  };
+  useEffect(() => {
+    let isCurrent = true;
+    async function loadProgress() {
+      const results = await Promise.allSettled([api.getReadiness(), api.getGoals(), api.getBadges()]);
+      if (!isCurrent) return;
+      if (results[0].status === "fulfilled") setReadiness(results[0].value.data);
+      if (results[1].status === "fulfilled") {
+        setGoals((results[1].value.data || []).map((goal) => ({
+          id: goal.id,
+          title: goal.title,
+          category: goal.category,
+          completed: goal.is_completed,
+          targetDate: goal.target_date ? String(goal.target_date).slice(0, 10) : "No target date",
+        })));
+      }
+      if (results[2].status === "fulfilled") {
+        const { catalog = [], earned = [] } = results[2].value;
+        const earnedByCode = new Map(earned.map((badge) => [badge.badge_code, badge]));
+        setBadges(catalog.map((badge) => {
+          const earnedBadge = earnedByCode.get(badge.code);
+          return {
+            code: badge.code,
+            name: badge.name,
+            icon: badge.icon,
+            desc: badge.description,
+            earned: Boolean(earnedBadge),
+            date: earnedBadge?.earned_at ? new Date(earnedBadge.earned_at).toLocaleDateString() : "Locked",
+          };
+        }));
+      }
+      const failed = results.find((result) => result.status === "rejected");
+      if (failed) setError(failed.reason.message || "Some progress details could not be loaded.");
+      setLoading(false);
+    }
+    loadProgress();
+    return () => { isCurrent = false; };
+  }, []);
 
-  const handleAddGoal = (e) => {
-    e.preventDefault();
-    if (!newGoalTitle.trim()) return;
-    setGoals((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        title: newGoalTitle,
-        category: "learning",
-        completed: false,
-        targetDate: "This Week",
-      },
-    ]);
-    setNewGoalTitle("");
-  };
+  async function toggleGoal(id) {
+    const goal = goals.find((item) => item.id === id);
+    if (!goal) return;
+    setError("");
+    try {
+      const response = await api.updateGoal(id, { isCompleted: !goal.completed });
+      setGoals((prev) => prev.map((item) => item.id === id ? { ...item, completed: response.data.is_completed } : item));
+    } catch (actionError) {
+      setError(actionError.message || "Could not update this goal.");
+    }
+  }
 
-  const readinessScore = 78;
+  async function handleAddGoal(event) {
+    event.preventDefault();
+    const title = newGoalTitle.trim();
+    if (!title) return;
+    setError("");
+    try {
+      const response = await api.createGoal({ title, category: "learning" });
+      const goal = response.data;
+      setGoals((prev) => [...prev, { id: goal.id, title: goal.title, category: goal.category, completed: goal.is_completed, targetDate: "No target date" }]);
+      setNewGoalTitle("");
+    } catch (actionError) {
+      setError(actionError.message || "Could not create this goal.");
+    }
+  }
 
+  const readinessScore = readiness?.overallScore ?? 0;
+  const readinessCategory = readiness?.category || "Loading readiness";
+  const breakdown = readiness?.breakdown || {};
   return (
     <div className={styles.dashboard}>
       <DashboardSidebar />
@@ -57,6 +91,9 @@ export default function ProgressPage() {
             <p className={styles.pageSubtitle}>Real-time analytics on your industry readiness and milestone achievements</p>
           </div>
         </header>
+
+        {error && <p role="alert" style={{ color: "#b91c1c", marginBottom: "16px" }}>{error}</p>}
+        {loading && <p>Loading your progress…</p>}
 
         {/* Readiness Score Card */}
         <div style={{
@@ -88,18 +125,18 @@ export default function ProgressPage() {
 
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
-              <h2 style={{ margin: 0, fontSize: "1.5rem" }}>Proficient &amp; Highly Competitive ⚡</h2>
+              <h2 style={{ margin: 0, fontSize: "1.5rem" }}>{readinessCategory}</h2>
             </div>
             <p style={{ margin: "0 0 18px 0", fontSize: "0.9375rem", opacity: 0.9, lineHeight: "1.5" }}>
-              You are among the top 15% of engineering candidates. Completing your pending containerization module and adding 1 more live project will elevate you to <strong>Industry Ready (85+)</strong> status!
+              Your readiness score is calculated from your profile, resume, learning progress, and applications.
             </p>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "12px" }}>
               {[
-                { label: "Technical Skills", val: 80 },
-                { label: "Practical Projects", val: 75 },
-                { label: "Resume ATS", val: 84 },
-                { label: "Learning Path", val: 68 },
+                { label: "Technical Skills", val: breakdown.skills || 0 },
+                { label: "Practical Projects", val: breakdown.projects || 0 },
+                { label: "Resume ATS", val: breakdown.resume || 0 },
+                { label: "Learning Path", val: breakdown.learning || 0 },
               ].map((p) => (
                 <div key={p.label} style={{ padding: "8px 12px", borderRadius: "10px", background: "rgba(255, 255, 255, 0.15)" }}>
                   <span style={{ fontSize: "0.75rem", opacity: 0.85 }}>{p.label}</span>
@@ -157,7 +194,7 @@ export default function ProgressPage() {
               {goals.map((g) => (
                 <div
                   key={g.id}
-                  onClick={() => toggleGoal(g.id)}
+
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -173,7 +210,7 @@ export default function ProgressPage() {
                   <input
                     type="checkbox"
                     checked={g.completed}
-                    onChange={() => {}}
+                    onChange={() => toggleGoal(g.id)}
                     style={{ width: "18px", height: "18px", accentColor: "var(--primary-600)", cursor: "pointer" }}
                   />
                   <span style={{
@@ -199,7 +236,7 @@ export default function ProgressPage() {
             </p>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: "12px" }}>
-              {BADGES.map((b) => (
+              {badges.map((b) => (
                 <div
                   key={b.code}
                   style={{

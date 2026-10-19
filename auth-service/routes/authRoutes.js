@@ -14,8 +14,8 @@ const validateRegister = [
     .withMessage("Password must be at least 8 characters"),
   body("role")
     .optional()
-    .isIn(["student", "mentor", "admin"])
-    .withMessage("Role must be student, mentor, or admin"),
+    .isIn(["student", "mentor"])
+    .withMessage("Role must be student or mentor"),
 ];
 
 const validateLogin = [

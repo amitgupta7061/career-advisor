@@ -7,7 +7,7 @@ const { getRedis } = require("../config/redis");
  * Generate access & refresh tokens for a user.
  */
 function generateTokens(user) {
-  const secret = process.env.JWT_SECRET || "fallback_secret_key_123";
+  const secret = process.env.JWT_SECRET;
   const refreshSecret = process.env.JWT_REFRESH_SECRET || secret + "_refresh";
 
   const accessToken = jwt.sign(
@@ -19,10 +19,15 @@ function generateTokens(user) {
   const refreshToken = jwt.sign(
     { id: user.id },
     refreshSecret,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "30d" }
+    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || process.env.REFRESH_TOKEN_EXPIRES_IN || "30d" }
   );
 
   return { accessToken, refreshToken };
+}
+
+function getRefreshTokenExpiry(refreshToken) {
+  const decoded = jwt.decode(refreshToken);
+  return new Date(decoded.exp * 1000);
 }
 
 /**
@@ -32,6 +37,9 @@ function generateTokens(user) {
 async function register(req, res) {
   try {
     const { firstName, lastName, email, password, role = "student" } = req.body;
+    if (!['student', 'mentor'].includes(role)) {
+      return res.status(400).json({ success: false, message: "Only student and mentor accounts can register." });
+    }
     const sql = getDb();
 
     // Check if user exists
@@ -65,7 +73,7 @@ async function register(req, res) {
     const { accessToken, refreshToken } = generateTokens(user);
 
     // Store refresh token
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const expiresAt = getRefreshTokenExpiry(refreshToken);
     await sql`
       INSERT INTO refresh_tokens (user_id, token, expires_at)
       VALUES (${user.id}, ${refreshToken}, ${expiresAt})
@@ -136,7 +144,7 @@ async function login(req, res) {
     const { accessToken, refreshToken } = generateTokens(user);
 
     // Store refresh token
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const expiresAt = getRefreshTokenExpiry(refreshToken);
     await sql`
       INSERT INTO refresh_tokens (user_id, token, expires_at)
       VALUES (${user.id}, ${refreshToken}, ${expiresAt})
@@ -198,7 +206,7 @@ async function refreshToken(req, res) {
     const sql = getDb();
 
     // Verify refresh token
-    const refreshSecret = process.env.JWT_REFRESH_SECRET || (process.env.JWT_SECRET || "fallback_secret_key_123") + "_refresh";
+    const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET + "_refresh";
     const decoded = jwt.verify(token, refreshSecret);
 
     // Check if token exists in DB
@@ -222,7 +230,7 @@ async function refreshToken(req, res) {
     // Generate new access token
     const accessToken = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || "fallback_secret_key_123",
+      process.env.JWT_SECRET,
       { expiresIn: process.env.JWT_EXPIRES_IN || "7d" }
     );
 
@@ -362,7 +370,7 @@ async function updateProfile(req, res) {
     if (user.role === "student" && Object.keys(profileData).length > 0) {
       const {
         university, degree, branch, yearOfStudy, graduationYear, gpa,
-        skills, interests, careerGoals, preferredLocations,
+        skills, interests, careerGoals, preferredLocations, projects, certifications,
         githubUrl, linkedinUrl, portfolioUrl,
       } = profileData;
 
@@ -378,6 +386,8 @@ async function updateProfile(req, res) {
             interests = COALESCE(${interests}, interests),
             career_goals = COALESCE(${careerGoals}, career_goals),
             preferred_locations = COALESCE(${preferredLocations}, preferred_locations),
+            projects = COALESCE(${projects}, projects),
+            certifications = COALESCE(${certifications}, certifications),
             github_url = COALESCE(${githubUrl}, github_url),
             linkedin_url = COALESCE(${linkedinUrl}, linkedin_url),
             portfolio_url = COALESCE(${portfolioUrl}, portfolio_url),
@@ -388,7 +398,7 @@ async function updateProfile(req, res) {
 
     // Invalidate cached session
     const redis = getRedis();
-    await redis.del(`session:${req.user.id}`);
+    if (redis) await redis.del(`session:${req.user.id}`);
 
     res.json({
       success: true,
