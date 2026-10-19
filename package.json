@@ -1,0 +1,21 @@
+{
+  "name": "career-advisor-root",
+  "version": "1.0.0",
+  "description": "One-Stop Personalized Career & Education Advisor (AI-Powered)",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd api-gateway && npm install && cd ../auth-service && npm install && cd ../career-ai-service && npm install && cd ../learning-service && npm install && cd ../opportunity-service && npm install && cd ../resume-service && npm install && cd ../progress-service && npm install && cd ../frontend && npm install && cd ..",
+    "db:init:all": "node auth-service/config/initDb.js && node career-ai-service/config/initDb.js && node learning-service/config/initDb.js && node opportunity-service/config/initDb.js && node resume-service/config/initDb.js && node progress-service/config/initDb.js",
+    "gateway": "cd api-gateway && npm run dev",
+    "auth": "cd auth-service && npm run dev",
+    "career": "cd career-ai-service && npm run dev",
+    "learning": "cd learning-service && npm run dev",
+    "opportunity": "cd opportunity-service && npm run dev",
+    "resume": "cd resume-service && npm run dev",
+    "progress": "cd progress-service && npm run dev",
+    "frontend": "cd frontend && npm run dev"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

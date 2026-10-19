@@ -1,0 +1,70 @@
+# ==============================================================================
+# 🛡️ Git Ignore Configuration - PathFinder AI Career & Education Advisor
+# ==============================================================================
+
+# 1. Environment & Secret Files (CRITICAL - NEVER COMMIT REAL SECRETS)
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Allow example environment templates to be committed
+!.env.example
+!**/.env.example
+
+# 2. Dependency Directories (Root and all microservices)
+node_modules/
+**/node_modules/
+package-lock.json.backup
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# 3. Next.js & Frontend Build Outputs
+.next/
+**/.next/
+out/
+build/
+dist/
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+
+# 4. Logs & Runtime Data
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# 5. OS & Editor Specific Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 6. Temporary & Cache Directories
+.cache/
+**/.cache/
+.temp/
+tmp/
+*.tmp
