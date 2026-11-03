@@ -60,3 +60,4 @@ class GroqProvider extends BaseAIProvider {
 }
 
 module.exports = GroqProvider;
+

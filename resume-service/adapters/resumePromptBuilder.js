@@ -161,3 +161,4 @@ module.exports = {
   buildResumePrompt,
   generateHeuristicResumeAnalysis,
 };
+
