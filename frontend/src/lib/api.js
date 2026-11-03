@@ -92,6 +92,8 @@ export const api = {
   getRoadmapDetail: (id) => request(`/learning/roadmaps/${id}`),
   updateStepStatus: (roadmapId, stepId, status) =>
     request(`/learning/roadmaps/${roadmapId}/steps/${stepId}`, { method: "PATCH", body: JSON.stringify({ status }) }),
+  setRoadmapStatus: (id, status) =>
+    request(`/learning/roadmaps/${id}/state`, { method: "PATCH", body: JSON.stringify({ status }) }),
 
   // Opportunities
   getOpportunities: (params = "") => request(`/opportunities${params}`),

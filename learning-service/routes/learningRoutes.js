@@ -11,5 +11,6 @@ router.post("/roadmap/generate", authenticate, learningController.generateRoadma
 router.get("/roadmaps", authenticate, learningController.getUserRoadmaps);
 router.get("/roadmaps/:id", authenticate, learningController.getRoadmapDetail);
 router.patch("/roadmaps/:roadmapId/steps/:stepId", authenticate, learningController.updateStepStatus);
+router.patch("/roadmaps/:id/state", authenticate, learningController.setRoadmapStatus);
 
 module.exports = router;
