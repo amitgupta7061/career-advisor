@@ -2,48 +2,62 @@ const { getDb } = require("../config/db");
 
 /**
  * GET /api/progress/readiness
- * Computes career readiness score across 5 key pillars.
+ * Computes career readiness score across 5 key pillars based on normalized student data.
  */
 async function getCareerReadiness(req, res) {
   try {
     const sql = getDb();
     const userId = req.user.id;
 
-    // 1. Fetch student profile
-    const [profile] = await sql`SELECT * FROM student_profiles WHERE user_id = ${userId}`;
-    const skillsCount = (profile && profile.skills) ? profile.skills.length : 0;
-    const projectsCount = (profile && profile.projects) ? profile.projects.length : 0;
-    const certsCount = (profile && profile.certifications) ? profile.certifications.length : 0;
+    // 1. Fetch student profile anchor
+    const [profile] = await sql`SELECT id FROM student_profiles WHERE user_id = ${userId}`;
+    const profileId = profile?.id;
+
+    // Fetch normalized skills, projects, and certifications
+    let skillsCount = 0;
+    let projectsCount = 0;
+    let certsCount = 0;
+
+    if (profileId) {
+      const [skillsResult, projectsResult, certsResult] = await Promise.all([
+        sql`SELECT count(*) as count FROM student_skills WHERE student_profile_id = ${profileId}`,
+        sql`SELECT count(*) as count FROM student_projects WHERE student_profile_id = ${profileId}`,
+        sql`SELECT count(*) as count FROM student_certifications WHERE student_profile_id = ${profileId}`,
+      ]);
+      skillsCount = parseInt(skillsResult[0]?.count || 0, 10);
+      projectsCount = parseInt(projectsResult[0]?.count || 0, 10);
+      certsCount = parseInt(certsResult[0]?.count || 0, 10);
+    }
 
     // 2. Fetch learning roadmap progress
     const roadmaps = await sql`
       SELECT total_steps, completed_steps FROM learning_roadmaps WHERE user_id = ${userId}
     `;
     let totalSteps = 0, completedSteps = 0;
-    roadmaps.forEach(r => {
+    roadmaps.forEach((r) => {
       totalSteps += (r.total_steps || 0);
       completedSteps += (r.completed_steps || 0);
     });
-    const learningScore = totalSteps > 0 ? Math.min(100, Math.round((completedSteps / totalSteps) * 100)) : 25;
+    const learningScore = totalSteps > 0 ? Math.min(100, Math.round((completedSteps / totalSteps) * 100)) : 30;
 
     // 3. Fetch latest resume ATS score
     const [latestResume] = await sql`
       SELECT ats_score FROM resume_analyses WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT 1
     `;
-    const resumeScore = latestResume ? latestResume.ats_score : 50;
+    const resumeScore = latestResume ? Number(latestResume.ats_score) : 50;
 
     // 4. Fetch opportunity applications
     const applications = await sql`
       SELECT COUNT(*) as count FROM opportunity_applications WHERE user_id = ${userId}
     `;
-    const appsCount = parseInt(applications[0].count) || 0;
+    const appsCount = parseInt(applications[0]?.count || 0, 10);
     const opportunityScore = Math.min(100, 30 + appsCount * 15);
 
     // Calculate pillar scores
-    const skillsScore = Math.min(100, Math.round((skillsCount / 8) * 100));
+    const skillsScore = Math.min(100, Math.round((skillsCount / 6) * 100));
     const practicalProjectsScore = Math.min(100, Math.round(((projectsCount * 2 + certsCount) / 5) * 100));
 
-    // Overall weighted readiness score
+    // Overall weighted readiness score (0 - 100)
     const overallScore = Math.round(
       skillsScore * 0.30 +
       practicalProjectsScore * 0.25 +
@@ -52,13 +66,13 @@ async function getCareerReadiness(req, res) {
       opportunityScore * 0.10
     );
 
-    // Actionable tips to increase readiness
+    // Actionable next steps
     const nextSteps = [];
-    if (skillsScore < 70) nextSteps.push("Acquire 2 more high-priority skills mapped to your target career role.");
-    if (practicalProjectsScore < 60) nextSteps.push("Build and deploy a full-stack portfolio project to GitHub.");
-    if (resumeScore < 75) nextSteps.push("Run Resume ATS Scanner and add quantifiable metrics to your bullet points.");
-    if (learningScore < 50) nextSteps.push("Complete pending course modules in your active learning roadmap.");
-    if (appsCount === 0) nextSteps.push("Bookmark and apply to your first matching internship or entry-level role.");
+    if (skillsScore < 70) nextSteps.push("Add 2 or more target competencies in Student Profile.");
+    if (practicalProjectsScore < 60) nextSteps.push("Publish a full-stack portfolio project to GitHub.");
+    if (resumeScore < 75) nextSteps.push("Run Resume ATS Scanner and incorporate action verbs and impact metrics.");
+    if (learningScore < 50) nextSteps.push("Complete in-progress milestones on your active Learning Roadmap.");
+    if (appsCount === 0) nextSteps.push("Browse matching opportunities and submit your first application.");
 
     res.json({
       success: true,
@@ -174,7 +188,7 @@ async function getActivities(req, res) {
       SELECT * FROM user_activities WHERE user_id = ${userId} ORDER BY created_at DESC LIMIT 20
     `;
 
-    res.json({ success: true, data: activities });
+    res.json({ success: true, count: activities.length, data: activities });
   } catch (error) {
     console.error("Get activities error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch activities." });
@@ -193,7 +207,7 @@ async function getGoals(req, res) {
       SELECT * FROM user_goals WHERE user_id = ${userId} ORDER BY is_completed ASC, created_at DESC
     `;
 
-    res.json({ success: true, data: goals });
+    res.json({ success: true, count: goals.length, data: goals });
   } catch (error) {
     console.error("Get goals error:", error);
     res.status(500).json({ success: false, message: "Failed to fetch goals." });
@@ -273,7 +287,7 @@ async function deleteGoal(req, res) {
     const userId = req.user.id;
 
     await sql`DELETE FROM user_goals WHERE id = ${req.params.id} AND user_id = ${userId}`;
-    res.json({ success: true, message: "Goal deleted." });
+    res.json({ success: true, message: "Goal deleted successfully." });
   } catch (error) {
     console.error("Delete goal error:", error);
     res.status(500).json({ success: false, message: "Failed to delete goal." });
@@ -288,27 +302,16 @@ async function getUserBadges(req, res) {
     const sql = getDb();
     const userId = req.user.id;
 
-    // Check criteria and award badges if eligible
-    const [profile] = await sql`SELECT skills, projects, certifications FROM student_profiles WHERE user_id = ${userId}`;
-    const skillsCount = profile?.skills?.length || 0;
-    const projectsCount = profile?.projects?.length || 0;
-    const certificationsCount = profile?.certifications?.length || 0;
+    const [profile] = await sql`SELECT id FROM student_profiles WHERE user_id = ${userId}`;
+    const profileId = profile?.id;
+
+    let skillsCount = 0;
+    if (profileId) {
+      const [skillsCountRes] = await sql`SELECT count(*) as count FROM student_skills WHERE student_profile_id = ${profileId}`;
+      skillsCount = parseInt(skillsCountRes?.count || 0, 10);
+    }
 
     const [resume] = await sql`SELECT ats_score FROM resume_analyses WHERE user_id = ${userId} ORDER BY ats_score DESC LIMIT 1`;
-    const roadmaps = await sql`SELECT total_steps, completed_steps FROM learning_roadmaps WHERE user_id = ${userId}`;
-    const totalSteps = roadmaps.reduce((sum, roadmap) => sum + (roadmap.total_steps || 0), 0);
-    const doneSteps = roadmaps.reduce((sum, roadmap) => sum + (roadmap.completed_steps || 0), 0);
-    const learningScore = totalSteps ? Math.min(100, Math.round((doneSteps / totalSteps) * 100)) : 25;
-    const [applicationCount] = await sql`SELECT COUNT(*) AS count FROM opportunity_applications WHERE user_id = ${userId}`;
-    const appsCount = Number(applicationCount.count) || 0;
-    const skillsScore = Math.min(100, Math.round((skillsCount / 8) * 100));
-    const practicalProjectsScore = Math.min(100, Math.round(((projectsCount * 2 + certificationsCount) / 5) * 100));
-    const resumeScore = resume ? resume.ats_score : 50;
-    const opportunityScore = Math.min(100, 30 + appsCount * 15);
-    const readinessScore = Math.round(
-      skillsScore * 0.30 + practicalProjectsScore * 0.25 + resumeScore * 0.20 + learningScore * 0.15 + opportunityScore * 0.10
-    );
-
     const [completedSteps] = await sql`
       SELECT COUNT(*) as count FROM roadmap_steps rs
       JOIN learning_roadmaps lr ON rs.roadmap_id = lr.id
@@ -334,26 +337,10 @@ async function getUserBadges(req, res) {
     }
 
     // Award "Fast Learner" if completed at least 1 roadmap step
-    if (parseInt(completedSteps.count) >= 1) {
+    if (parseInt(completedSteps.count, 10) >= 1) {
       await sql`
         INSERT INTO user_badges (user_id, badge_code, badge_name, badge_icon, badge_description)
         VALUES (${userId}, 'FAST_LEARNER', 'Fast Learner', '⚡', 'Successfully completed your first roadmap learning module.')
-        ON CONFLICT (user_id, badge_code) DO NOTHING
-      `;
-    }
-
-    if (appsCount >= 3) {
-      await sql`
-        INSERT INTO user_badges (user_id, badge_code, badge_name, badge_icon, badge_description)
-        VALUES (${userId}, 'OPPORTUNITY_HUNTER', 'Opportunity Hunter', '💼', 'Submitted 3 or more job or internship applications.')
-        ON CONFLICT (user_id, badge_code) DO NOTHING
-      `;
-    }
-
-    if (readinessScore >= 85) {
-      await sql`
-        INSERT INTO user_badges (user_id, badge_code, badge_name, badge_icon, badge_description)
-        VALUES (${userId}, 'CAREER_READY', 'Career Ready Master', '🏆', 'Reached a career readiness score of 85 or higher.')
         ON CONFLICT (user_id, badge_code) DO NOTHING
       `;
     }
