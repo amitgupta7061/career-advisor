@@ -7,6 +7,7 @@ const cors = require("cors");
 const helmet = require("helmet");
 const morgan = require("morgan");
 const authRoutes = require("./routes/authRoutes");
+const profileRoutes = require("./routes/profileRoutes");
 
 const app = express();
 const PORT = Number(process.env.PORT || process.env.AUTH_SERVICE_PORT || 5001);
@@ -32,6 +33,7 @@ app.get("/health", (req, res) => {
 
 // ─── Routes ────────────────────────────────────────────────────
 app.use("/api/auth", authRoutes);
+app.use("/api/profile", profileRoutes);
 
 // ─── 404 Handler ───────────────────────────────────────────────
 app.use("*", (req, res) => {

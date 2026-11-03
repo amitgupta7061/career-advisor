@@ -17,6 +17,7 @@ if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
 
 const serviceProxies = [
   { prefix: "/api/auth", envName: "AUTH_SERVICE_URL" },
+  { prefix: "/api/profile", envName: "AUTH_SERVICE_URL" },
   { prefix: "/api/career", envName: "CAREER_AI_SERVICE_URL" },
   { prefix: "/api/learning", envName: "LEARNING_SERVICE_URL" },
   { prefix: "/api/opportunities", envName: "OPPORTUNITY_SERVICE_URL" },

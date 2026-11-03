@@ -37,12 +37,53 @@ export const api = {
   logout: () => request("/auth/logout", { method: "POST" }),
   updateProfile: (body) => request("/auth/profile", { method: "PUT", body: JSON.stringify(body) }),
 
+  // Student Profile Management (Objective 1)
+  getMyProfile: () => request("/profile/me"),
+  updatePersonalProfile: (body) => request("/profile/me", { method: "PATCH", body: JSON.stringify(body) }),
+
+  // Academics
+  getAcademics: () => request("/profile/academics"),
+  addAcademic: (body) => request("/profile/academics", { method: "POST", body: JSON.stringify(body) }),
+  updateAcademic: (id, body) => request(`/profile/academics/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteAcademic: (id) => request(`/profile/academics/${id}`, { method: "DELETE" }),
+
+  // Skills
+  getSkills: (category = "") => request(`/profile/skills${category ? `?category=${category}` : ""}`),
+  addSkill: (body) => request("/profile/skills", { method: "POST", body: JSON.stringify(body) }),
+  updateSkill: (id, body) => request(`/profile/skills/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteSkill: (id) => request(`/profile/skills/${id}`, { method: "DELETE" }),
+
+  // Preferences
+  getPreferences: () => request("/profile/preferences"),
+  updatePreferences: (body) => request("/profile/preferences", { method: "PUT", body: JSON.stringify(body) }),
+
+  // Projects
+  getProjects: () => request("/profile/projects"),
+  addProject: (body) => request("/profile/projects", { method: "POST", body: JSON.stringify(body) }),
+  updateProject: (id, body) => request(`/profile/projects/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteProject: (id) => request(`/profile/projects/${id}`, { method: "DELETE" }),
+
+  // Experiences
+  getExperiences: () => request("/profile/experiences"),
+  addExperience: (body) => request("/profile/experiences", { method: "POST", body: JSON.stringify(body) }),
+  updateExperience: (id, body) => request(`/profile/experiences/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteExperience: (id) => request(`/profile/experiences/${id}`, { method: "DELETE" }),
+
+  // Certifications
+  getCertifications: () => request("/profile/certifications"),
+  addCertification: (body) => request("/profile/certifications", { method: "POST", body: JSON.stringify(body) }),
+  updateCertification: (id, body) => request(`/profile/certifications/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  deleteCertification: (id) => request(`/profile/certifications/${id}`, { method: "DELETE" }),
+
   // Career AI
   getCareerRoles: () => request("/career/roles"),
   getCareerBySlug: (slug) => request(`/career/roles/${slug}`),
-  getRecommendations: (body) => request("/career/recommend", { method: "POST", body: JSON.stringify(body) }),
+  getRecommendations: (body = {}) => request("/career/recommend", { method: "POST", body: JSON.stringify(body) }),
+  getLatestRecommendations: () => request("/career/recommendations/latest"),
   getSkillGaps: (roleId) => request(`/career/skill-gaps${roleId ? `?roleId=${roleId}` : ""}`),
   analyzeSkillGaps: (body) => request("/career/skill-gaps/analyze", { method: "POST", body: JSON.stringify(body) }),
+  getSkillGapHistory: (roleId = "") => request(`/career/skill-gaps/history${roleId ? `?roleId=${roleId}` : ""}`),
+  getRoleSkillRequirements: (roleId) => request(`/career/skill-gaps/requirements/${roleId}`),
 
   // Learning
   getCourses: (params = "") => request(`/learning/courses${params}`),

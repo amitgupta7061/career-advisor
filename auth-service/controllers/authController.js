@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { getDb } = require("../config/db");
 const { getRedis } = require("../config/redis");
+const { hashToken } = require("../utils/tokenHash");
 
 /**
  * Generate access & refresh tokens for a user.
@@ -72,11 +73,12 @@ async function register(req, res) {
     // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user);
 
-    // Store refresh token
+    // Store refresh token with hash for secure storage
     const expiresAt = getRefreshTokenExpiry(refreshToken);
+    const tokenHash = hashToken(refreshToken);
     await sql`
-      INSERT INTO refresh_tokens (user_id, token, expires_at)
-      VALUES (${user.id}, ${refreshToken}, ${expiresAt})
+      INSERT INTO refresh_tokens (user_id, token, token_hash, expires_at)
+      VALUES (${user.id}, ${refreshToken}, ${tokenHash}, ${expiresAt})
     `;
 
     // Cache user session in Redis (optional)
@@ -143,11 +145,12 @@ async function login(req, res) {
     // Generate tokens
     const { accessToken, refreshToken } = generateTokens(user);
 
-    // Store refresh token
+    // Store refresh token with hash for secure storage
     const expiresAt = getRefreshTokenExpiry(refreshToken);
+    const tokenHash = hashToken(refreshToken);
     await sql`
-      INSERT INTO refresh_tokens (user_id, token, expires_at)
-      VALUES (${user.id}, ${refreshToken}, ${expiresAt})
+      INSERT INTO refresh_tokens (user_id, token, token_hash, expires_at)
+      VALUES (${user.id}, ${refreshToken}, ${tokenHash}, ${expiresAt})
     `;
 
     // Cache session (optional)
@@ -209,10 +212,13 @@ async function refreshToken(req, res) {
     const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET + "_refresh";
     const decoded = jwt.verify(token, refreshSecret);
 
-    // Check if token exists in DB
+    // Check if token exists in DB using hash or raw token (backward-compatible)
+    const tokenHash = hashToken(token);
     const [storedToken] = await sql`
       SELECT id FROM refresh_tokens
-      WHERE user_id = ${decoded.id} AND token = ${token} AND expires_at > NOW()
+      WHERE user_id = ${decoded.id} 
+        AND (token_hash = ${tokenHash} OR token = ${token}) 
+        AND expires_at > NOW()
     `;
 
     if (!storedToken) {
