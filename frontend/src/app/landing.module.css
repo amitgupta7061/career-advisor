@@ -736,6 +736,11 @@
 }
 
 @media (max-width: 768px) {
+  .floatingCard1,
+  .floatingCard2 {
+    display: none;
+  }
+
   .featuresGrid,
   .testimonialsGrid {
     grid-template-columns: 1fr;

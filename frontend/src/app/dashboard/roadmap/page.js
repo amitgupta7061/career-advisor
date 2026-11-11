@@ -62,17 +62,22 @@ export default function RoadmapPage() {
     setUpdating(true);
     setSkillNotice(null);
 
-    const nextStatus = currentStatus === "completed" ? "pending" : currentStatus === "in_progress" ? "completed" : "in_progress";
+    const nextStatus =
+      currentStatus === "completed"
+        ? "pending"
+        : currentStatus === "in_progress"
+        ? "completed"
+        : "in_progress";
 
     try {
       const res = await api.updateStepStatus(roadmap.id, stepId, nextStatus);
       if (res.success && res.data) {
-        // If skill was upgraded, show celebration toast
         if (res.data.skillUpdated) {
-          setSkillNotice(`🎉 Skill Verified: ${res.data.skillUpdated.skillName} upgraded to ${res.data.skillUpdated.newLevel.toUpperCase()}!`);
+          setSkillNotice(
+            `🎉 Skill Verified: ${res.data.skillUpdated.skillName} upgraded to ${String(res.data.skillUpdated.newLevel).toUpperCase()}!`
+          );
         }
 
-        // Refresh roadmap details
         const updated = await api.getRoadmapDetail(roadmap.id);
         setRoadmap(updated.data);
         setMilestones(updated.data.milestones || []);
@@ -109,28 +114,21 @@ export default function RoadmapPage() {
 
       <main className={styles.mainContent}>
         <header className={styles.topBar}>
-          <div>
+          <div className={styles.pageHeader}>
             <h1 className={styles.pageTitle}>Personalized Learning Roadmap 📚</h1>
             <p className={styles.pageSubtitle}>
-              Milestone-driven technical pathway to bridge skill gaps for <strong>{roadmap?.target_role || roadmap?.role_title || "your career goal"}</strong>
+              Milestone-driven technical pathway to bridge skill gaps for{" "}
+              <strong>{roadmap?.target_role || roadmap?.role_title || "your target career"}</strong>
             </p>
           </div>
 
           {roadmapsList.length > 1 && (
-            <div>
+            <div className={styles.topBarActions}>
               <select
                 value={roadmap?.id || ""}
                 onChange={(e) => handleSelectRoadmap(e.target.value)}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "10px",
-                  border: "1px solid var(--border-color)",
-                  background: "var(--bg-card)",
-                  color: "var(--text-primary)",
-                  fontSize: "0.875rem",
-                  fontWeight: 600,
-                  outline: "none",
-                }}
+                className="input-field"
+                style={{ width: "auto" }}
               >
                 {roadmapsList.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -143,37 +141,34 @@ export default function RoadmapPage() {
         </header>
 
         {error && (
-          <div style={{ padding: "14px 18px", borderRadius: "12px", background: "#fee2e2", color: "#991b1b", marginBottom: "20px" }}>
-            {error}
+          <div style={{ padding: "14px 18px", borderRadius: "var(--radius-md)", background: "var(--danger-50)", color: "var(--danger-600)", border: "1px solid var(--danger-200)", marginBottom: "20px", fontSize: "0.875rem" }}>
+            ⚠️ {error}
           </div>
         )}
 
         {skillNotice && (
-          <div style={{ padding: "14px 18px", borderRadius: "12px", background: "#ecfdf5", border: "1px solid #a7f3d0", color: "#065f46", marginBottom: "20px", fontWeight: 600 }}>
+          <div style={{ padding: "14px 18px", borderRadius: "var(--radius-md)", background: "var(--success-50)", border: "1px solid var(--success-200)", color: "var(--success-700)", marginBottom: "20px", fontWeight: 600, fontSize: "0.875rem" }}>
             {skillNotice}
           </div>
         )}
 
-        {loading && <p>Loading your personalized roadmap…</p>}
+        {loading && (
+          <div className="card" style={{ padding: "32px", textAlign: "center", marginBottom: "24px" }}>
+            <span className="spinner" style={{ color: "var(--primary-600)", marginBottom: "8px" }} />
+            <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Loading your personalized roadmap…</p>
+          </div>
+        )}
 
         {!loading && !roadmap && (
-          <div style={{ padding: "32px", borderRadius: "16px", background: "var(--bg-card)", textAlign: "center", border: "1px solid var(--border-color)" }}>
-            <h3>No learning roadmap generated yet!</h3>
-            <p style={{ color: "var(--text-secondary)", marginBottom: "20px" }}>
-              Explore career paths and perform a Skill Gap Analysis to generate your personalized learning plan.
+          <div className="card" style={{ padding: "40px 24px", textAlign: "center" }}>
+            <div style={{ fontSize: "2.5rem", marginBottom: "12px" }}>🗺️</div>
+            <h3 style={{ fontSize: "1.25rem", color: "var(--text-primary)", fontWeight: 700, marginBottom: "8px" }}>
+              No Learning Roadmap Generated Yet
+            </h3>
+            <p style={{ color: "var(--text-secondary)", marginBottom: "20px", maxWidth: "420px", margin: "0 auto 20px auto", fontSize: "0.9375rem" }}>
+              Explore career paths and run a Skill Gap Analysis to generate your tailored milestone pathway.
             </p>
-            <Link
-              href="/dashboard/careers"
-              style={{
-                display: "inline-block",
-                padding: "12px 24px",
-                borderRadius: "10px",
-                background: "var(--primary-600)",
-                color: "#ffffff",
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
-            >
+            <Link href="/dashboard/careers" className="btn btn-primary">
               Explore Career Paths →
             </Link>
           </div>
@@ -181,57 +176,54 @@ export default function RoadmapPage() {
 
         {roadmap && (
           <>
-            {/* Overview Pathway Banner */}
+            {/* Overview Pathway Hero Banner */}
             <div
               style={{
-                padding: "26px",
-                borderRadius: "18px",
-                background: roadmap.status === "paused"
-                  ? "linear-gradient(135deg, #64748b, #475569)"
-                  : "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
+                padding: "28px 32px",
+                borderRadius: "var(--radius-xl)",
+                background:
+                  roadmap.status === "paused"
+                    ? "linear-gradient(135deg, #475569, #334155)"
+                    : "linear-gradient(135deg, var(--primary-700) 0%, var(--primary-600) 100%)",
                 color: "#ffffff",
                 marginBottom: "28px",
                 boxShadow: "0 8px 24px rgba(79, 70, 229, 0.22)",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px", flexWrap: "wrap", gap: "16px" }}>
                 <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", background: "rgba(255,255,255,0.2)", padding: "2px 8px", borderRadius: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", flexWrap: "wrap" }}>
+                    <span style={{ fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", background: "rgba(255,255,255,0.2)", padding: "3px 10px", borderRadius: "var(--radius-full)", fontWeight: 600 }}>
                       Pathway: {roadmap.target_role || "Professional"}
                     </span>
-                    <span style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.2)", padding: "2px 8px", borderRadius: "6px" }}>
+                    <span style={{ fontSize: "0.75rem", background: "rgba(255,255,255,0.2)", padding: "3px 10px", borderRadius: "var(--radius-full)" }}>
                       v{roadmap.version || 1}
                     </span>
-                    <span style={{ fontSize: "0.75rem", background: roadmap.status === "active" ? "#10b981" : "#f59e0b", padding: "2px 8px", borderRadius: "6px", fontWeight: 700 }}>
-                      {roadmap.status?.toUpperCase()}
+                    <span style={{ fontSize: "0.75rem", background: roadmap.status === "active" ? "var(--success-500)" : "var(--warning-500)", padding: "3px 10px", borderRadius: "var(--radius-full)", fontWeight: 700 }}>
+                      {String(roadmap.status).toUpperCase()}
                     </span>
                   </div>
-                  <h2 style={{ margin: "0 0 6px 0", fontSize: "1.5rem" }}>{roadmap.title}</h2>
-                  <p style={{ margin: 0, fontSize: "0.875rem", opacity: 0.9, maxWidth: "700px", lineHeight: "1.5" }}>
+                  <h2 style={{ margin: "4px 0 6px 0", fontSize: "1.5rem", fontWeight: 800 }}>{roadmap.title}</h2>
+                  <p style={{ margin: 0, fontSize: "0.875rem", opacity: 0.9, maxWidth: "680px", lineHeight: "1.5" }}>
                     {roadmap.description}
                   </p>
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "10px" }}>
                   <div style={{ textAlign: "right" }}>
-                    <span style={{ fontSize: "2rem", fontWeight: 800 }}>{overallPercent}%</span>
-                    <span style={{ display: "block", fontSize: "0.8125rem", opacity: 0.9 }}>
+                    <span style={{ fontSize: "2.25rem", fontWeight: 800, lineHeight: 1 }}>{overallPercent}%</span>
+                    <span style={{ display: "block", fontSize: "0.75rem", opacity: 0.85, marginTop: "2px" }}>
                       {completedStepsCount} of {allSteps.length} Activities Completed
                     </span>
                   </div>
 
                   <button
                     onClick={toggleRoadmapState}
+                    className="btn btn-sm"
                     style={{
-                      padding: "6px 14px",
-                      borderRadius: "8px",
-                      border: "none",
                       background: "rgba(255,255,255,0.2)",
                       color: "#ffffff",
-                      fontSize: "0.8125rem",
-                      fontWeight: 600,
-                      cursor: "pointer",
+                      border: "none",
                       backdropFilter: "blur(4px)",
                     }}
                   >
@@ -242,11 +234,19 @@ export default function RoadmapPage() {
 
               {/* Progress Bar */}
               <div style={{ width: "100%", height: "10px", background: "rgba(255, 255, 255, 0.25)", borderRadius: "6px", overflow: "hidden" }}>
-                <div style={{ width: `${overallPercent}%`, height: "100%", background: "#ffffff", borderRadius: "6px", transition: "width 0.4s ease" }} />
+                <div
+                  style={{
+                    width: `${overallPercent}%`,
+                    height: "100%",
+                    background: "#ffffff",
+                    borderRadius: "6px",
+                    transition: "width 0.4s ease",
+                  }}
+                />
               </div>
 
               {/* Metrics Strip */}
-              <div style={{ display: "flex", gap: "24px", marginTop: "18px", fontSize: "0.875rem", flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: "24px", marginTop: "16px", fontSize: "0.875rem", flexWrap: "wrap", opacity: 0.95 }}>
                 <span>⏱️ Total Effort: <strong>{totalHours} Hours</strong></span>
                 <span>📅 Estimated Duration: <strong>{roadmap.estimated_duration_weeks || 10} Weeks</strong></span>
                 <span>🎯 <strong>{milestones.length} Strategic Phases</strong></span>
@@ -255,31 +255,24 @@ export default function RoadmapPage() {
             </div>
 
             {/* Filter by Activity Type */}
-            <div style={{ display: "flex", gap: "8px", marginBottom: "24px", overflowX: "auto", paddingBottom: "4px" }}>
-              {["all", "course", "project", "tutorial", "practice", "documentation"].map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setFilterType(type)}
-                  style={{
-                    padding: "8px 16px",
-                    borderRadius: "20px",
-                    border: filterType === type ? "1px solid var(--primary-600)" : "1px solid var(--border-color)",
-                    background: filterType === type ? "var(--primary-600)" : "var(--bg-card)",
-                    color: filterType === type ? "#ffffff" : "var(--text-secondary)",
-                    fontWeight: filterType === type ? 600 : 500,
-                    fontSize: "0.8125rem",
-                    cursor: "pointer",
-                    textTransform: "capitalize",
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {type === "all" ? "All Activities" : type}
-                </button>
-              ))}
+            <div className={styles.pillsScroll} style={{ marginBottom: "24px" }}>
+              {["all", "course", "project", "tutorial", "practice", "documentation"].map((type) => {
+                const isType = filterType === type;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setFilterType(type)}
+                    className={`btn btn-sm ${isType ? "btn-primary" : "btn-outline"}`}
+                    style={{ borderRadius: "var(--radius-full)", textTransform: "capitalize" }}
+                  >
+                    {type === "all" ? "All Activities" : type}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Milestones and Activities Accordion/List */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
               {milestones.map((milestone) => {
                 const milestoneFilteredSteps = (milestone.steps || []).filter(
                   (s) => filterType === "all" || (s.activity_type || s.resource_type) === filterType
@@ -294,26 +287,21 @@ export default function RoadmapPage() {
                 return (
                   <div
                     key={milestone.milestoneIndex}
-                    style={{
-                      borderRadius: "18px",
-                      background: "var(--bg-card)",
-                      border: "1px solid var(--border-color)",
-                      padding: "24px",
-                      boxShadow: "var(--shadow-sm)",
-                    }}
+                    className="card"
+                    style={{ padding: "24px" }}
                   >
                     {/* Milestone Header */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid var(--border-light)", paddingBottom: "16px" }}>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                          <span style={{ fontSize: "0.8125rem", fontWeight: 700, color: "var(--primary-600)" }}>
+                          <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--primary-600)", textTransform: "uppercase" }}>
                             PHASE {milestone.milestoneIndex}
                           </span>
-                          <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
+                          <span style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>
                             · {milestone.durationWeeks || 3} Weeks
                           </span>
                         </div>
-                        <h3 style={{ margin: 0, fontSize: "1.25rem", color: "var(--text-primary)" }}>
+                        <h3 style={{ margin: 0, fontSize: "1.1875rem", color: "var(--text-primary)", fontWeight: 700 }}>
                           {milestone.title}
                         </h3>
                         {milestone.description && (
@@ -324,17 +312,24 @@ export default function RoadmapPage() {
                       </div>
 
                       <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                        <span style={{ fontSize: "0.875rem", fontWeight: 700, color: mPercent === 100 ? "#10b981" : "var(--primary-600)" }}>
+                        <span style={{ fontSize: "0.875rem", fontWeight: 700, color: mPercent === 100 ? "var(--success-600)" : "var(--primary-600)" }}>
                           {mPercent}% Complete
                         </span>
-                        <div style={{ width: "90px", height: "8px", background: "#e2e8f0", borderRadius: "4px", overflow: "hidden" }}>
-                          <div style={{ width: `${mPercent}%`, height: "100%", background: mPercent === 100 ? "#10b981" : "var(--primary-600)", borderRadius: "4px" }} />
+                        <div style={{ width: "90px", height: "8px", background: "var(--neutral-200)", borderRadius: "4px", overflow: "hidden" }}>
+                          <div
+                            style={{
+                              width: `${mPercent}%`,
+                              height: "100%",
+                              background: mPercent === 100 ? "var(--success-500)" : "var(--primary-600)",
+                              borderRadius: "4px",
+                            }}
+                          />
                         </div>
                       </div>
                     </div>
 
                     {/* Step Cards within Milestone */}
-                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                       {milestoneFilteredSteps.map((step) => {
                         const isCompleted = step.status === "completed";
                         const isInProgress = step.status === "in_progress";
@@ -344,70 +339,58 @@ export default function RoadmapPage() {
                           <div
                             key={step.id}
                             style={{
-                              display: "grid",
-                              gridTemplateColumns: "54px 1fr auto",
-                              gap: "20px",
-                              padding: "20px",
-                              borderRadius: "14px",
-                              background: isCompleted ? "#f0fdf4" : isInProgress ? "#f5f3ff" : "#f8fafc",
-                              border: isInProgress ? "2px solid #8b5cf6" : isCompleted ? "1px solid #bbf7d0" : "1px solid #e2e8f0",
+                              display: "flex",
                               alignItems: "center",
+                              gap: "16px",
+                              padding: "18px",
+                              borderRadius: "var(--radius-lg)",
+                              background: isCompleted ? "var(--success-50)" : isInProgress ? "var(--primary-50)" : "var(--surface-secondary)",
+                              border: isInProgress ? "2px solid var(--primary-500)" : isCompleted ? "1px solid var(--success-200)" : "1px solid var(--border-light)",
+                              flexWrap: "wrap",
+                              transition: "all var(--transition-fast)",
                             }}
                           >
                             {/* Step Order Circle */}
                             <div
                               style={{
-                                width: "48px",
-                                height: "48px",
+                                width: "42px",
+                                height: "42px",
                                 borderRadius: "50%",
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "center",
-                                background: isCompleted ? "#d1fae5" : isInProgress ? "#ede9fe" : "#ffffff",
-                                color: isCompleted ? "#065f46" : isInProgress ? "#6d28d9" : "#64748b",
-                                fontSize: "1.125rem",
+                                background: isCompleted ? "var(--success-200)" : isInProgress ? "var(--primary-200)" : "var(--surface-primary)",
+                                color: isCompleted ? "var(--success-700)" : isInProgress ? "var(--primary-700)" : "var(--text-secondary)",
+                                fontSize: "1rem",
                                 fontWeight: 700,
-                                border: isCompleted ? "none" : "1px solid #cbd5e1",
+                                border: isCompleted ? "none" : "1px solid var(--border-light)",
+                                flexShrink: 0,
                               }}
                             >
                               {isCompleted ? "✓" : step.step_order}
                             </div>
 
                             {/* Activity Info */}
-                            <div>
+                            <div style={{ flex: 1, minWidth: "240px" }}>
                               <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", flexWrap: "wrap" }}>
-                                <span
-                                  style={{
-                                    padding: "2px 8px",
-                                    borderRadius: "6px",
-                                    fontSize: "0.75rem",
-                                    fontWeight: 700,
-                                    textTransform: "uppercase",
-                                    background: type === "project" ? "#fce7f3" : type === "practice" ? "#fef3c7" : "#e0e7ff",
-                                    color: type === "project" ? "#9d174d" : type === "practice" ? "#92400e" : "#3730a3",
-                                  }}
-                                >
+                                <span className={`badge ${type === "project" ? "badge-danger" : type === "practice" ? "badge-warning" : "badge-primary"}`}>
                                   {type}
                                 </span>
 
-                                <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
+                                <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
                                   via <strong>{step.platform || "Self-guided"}</strong> · ⏱️ {step.estimated_hrs || 15} hrs
                                 </span>
 
                                 {step.is_free !== false && (
-                                  <span style={{ padding: "2px 6px", borderRadius: "4px", fontSize: "0.6875rem", background: "#dcfce7", color: "#166534", fontWeight: 600 }}>
-                                    Free
-                                  </span>
+                                  <span className="badge badge-success">Free</span>
                                 )}
 
                                 {step.priority === "critical" && (
-                                  <span style={{ padding: "2px 6px", borderRadius: "4px", fontSize: "0.6875rem", background: "#fee2e2", color: "#991b1b", fontWeight: 700 }}>
-                                    High Priority Gap
-                                  </span>
+                                  <span className="badge badge-danger">High Priority Gap</span>
                                 )}
                               </div>
 
-                              <h4 style={{ margin: "0 0 6px 0", fontSize: "1.0625rem", color: "var(--text-primary)" }}>
+                              <h4 style={{ margin: "0 0 6px 0", fontSize: "1rem", color: "var(--text-primary)", fontWeight: 700 }}>
                                 {step.title}
                               </h4>
 
@@ -415,30 +398,19 @@ export default function RoadmapPage() {
                                 {step.description}
                               </p>
 
-                              {/* Expected Outcome */}
                               {step.expected_outcomes && (
-                                <p style={{ margin: 0, fontSize: "0.8125rem", color: "#047857", fontWeight: 600 }}>
+                                <p style={{ margin: 0, fontSize: "0.8125rem", color: "var(--success-700)", fontWeight: 600 }}>
                                   🎯 Outcome: {step.expected_outcomes}
                                 </p>
                               )}
                             </div>
 
                             {/* Action Buttons */}
-                            <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end" }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px", alignItems: "flex-end", flexShrink: 0 }}>
                               <button
                                 onClick={() => toggleStep(step.id, step.status)}
                                 disabled={updating}
-                                style={{
-                                  padding: "8px 18px",
-                                  borderRadius: "10px",
-                                  border: "none",
-                                  background: isCompleted ? "#d1fae5" : isInProgress ? "#8b5cf6" : "var(--primary-600)",
-                                  color: isCompleted ? "#065f46" : "#ffffff",
-                                  fontSize: "0.875rem",
-                                  fontWeight: 600,
-                                  cursor: updating ? "wait" : "pointer",
-                                  transition: "all 0.2s ease",
-                                }}
+                                className={`btn btn-sm ${isCompleted ? "btn-outline" : "btn-primary"}`}
                               >
                                 {isCompleted ? "Completed ✓" : isInProgress ? "Mark Completed" : "Start Activity"}
                               </button>
@@ -450,7 +422,6 @@ export default function RoadmapPage() {
                                 style={{
                                   fontSize: "0.8125rem",
                                   color: "var(--primary-600)",
-                                  textDecoration: "none",
                                   fontWeight: 600,
                                 }}
                               >

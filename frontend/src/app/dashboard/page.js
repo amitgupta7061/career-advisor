@@ -8,17 +8,28 @@ import { api } from "@/lib/api";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user] = useState(() => { try { return typeof window === "undefined" ? null : JSON.parse(localStorage.getItem("user") || "null"); } catch { return null; } });
-  const [dashboardData, setDashboardData] = useState({ roleCount: 0, skillGaps: [], recommendations: [], opportunitiesCount: 0, resumeScore: null });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState({
+    roleCount: 0,
+    skillGaps: [],
+    recommendations: [],
+    opportunitiesCount: 0,
+    resumeScore: null,
+  });
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("token");
       const storedUser = localStorage.getItem("user");
-
       if (!token) {
         router.push("/login?message=Please log in or create an account first to access your personalized dashboard.");
         return;
+      }
+      try {
+        if (storedUser) setUser(JSON.parse(storedUser));
+      } catch {
+        setUser(null);
       }
     }
   }, [router]);
@@ -26,21 +37,26 @@ export default function DashboardPage() {
   useEffect(() => {
     let isCurrent = true;
     async function loadDashboardData() {
-      const results = await Promise.allSettled([
-        api.getCareerRoles(),
-        api.getRecommendations({}),
-        api.getSkillGaps(),
-        api.getOpportunities(),
-        api.getResumeHistory(),
-      ]);
-      if (!isCurrent) return;
-      setDashboardData({
-        roleCount: results[0].status === "fulfilled" ? (results[0].value.data || []).length : 0,
-        recommendations: results[1].status === "fulfilled" ? results[1].value.data?.recommendations || [] : [],
-        skillGaps: results[2].status === "fulfilled" ? results[2].value.data || [] : [],
-        opportunitiesCount: results[3].status === "fulfilled" ? results[3].value.count || 0 : 0,
-        resumeScore: results[4].status === "fulfilled" ? results[4].value.data?.[0]?.ats_score ?? null : null,
-      });
+      setLoading(true);
+      try {
+        const results = await Promise.allSettled([
+          api.getCareerRoles(),
+          api.getRecommendations({}),
+          api.getSkillGaps(),
+          api.getOpportunities(),
+          api.getResumeHistory(),
+        ]);
+        if (!isCurrent) return;
+        setDashboardData({
+          roleCount: results[0].status === "fulfilled" ? (results[0].value.data || []).length : 0,
+          recommendations: results[1].status === "fulfilled" ? results[1].value.data?.recommendations || [] : [],
+          skillGaps: results[2].status === "fulfilled" ? results[2].value.data || [] : [],
+          opportunitiesCount: results[3].status === "fulfilled" ? results[3].value.count || 0 : 0,
+          resumeScore: results[4].status === "fulfilled" ? results[4].value.data?.[0]?.ats_score ?? null : null,
+        });
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
     }
     loadDashboardData();
     return () => { isCurrent = false; };
@@ -50,7 +66,7 @@ export default function DashboardPage() {
     try {
       await api.logout();
     } catch {
-      // Clear the local session even when the gateway is unavailable.
+      // Clear local session even when network unreachable
     }
     if (typeof window !== "undefined") {
       localStorage.removeItem("token");
@@ -60,7 +76,10 @@ export default function DashboardPage() {
   };
 
   const displayName = user?.firstName ? `${user.firstName}` : "Student";
-  const initials = user?.firstName ? `${user.firstName[0]}${user?.lastName ? user.lastName[0] : ""}`.toUpperCase() : "PF";
+  const fullName = user?.firstName ? `${user.firstName} ${user.lastName || ""}`.trim() : "Student";
+  const initials = user?.firstName
+    ? `${user.firstName[0]}${user?.lastName ? user.lastName[0] : ""}`.toUpperCase()
+    : "PF";
 
   return (
     <div className={styles.dashboard}>
@@ -68,101 +87,145 @@ export default function DashboardPage() {
 
       <main className={styles.mainContent}>
         <header className={styles.topBar}>
-          <div>
+          <div className={styles.pageHeader}>
             <h1 className={styles.pageTitle}>Welcome back, {displayName}! 👋</h1>
-            <p className={styles.pageSubtitle}>Here&apos;s your unified AI career and learning progress</p>
+            <p className={styles.pageSubtitle}>
+              Here is your unified AI career progress, skill gaps, and active recommendations
+            </p>
           </div>
-          <div className={styles.topBarActions} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div className={styles.topBarActions}>
+            <div className={styles.userBadge}>
+              <div className={styles.avatar}>{initials}</div>
+              <span className={styles.userName}>{fullName}</span>
+            </div>
             <button
               onClick={handleLogout}
-              style={{
-                padding: "8px 14px",
-                borderRadius: "10px",
-                border: "1px solid var(--border-color)",
-                background: "var(--bg-card)",
-                color: "var(--text-secondary)",
-                fontSize: "0.8125rem",
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "all 0.2s ease"
-              }}
+              className="btn btn-outline btn-sm"
+              title="Log out of your account"
             >
               Log Out ↪
             </button>
-            <div className={styles.avatar}>{initials}</div>
           </div>
         </header>
 
-        <div className={styles.statsGrid}>
+        {/* Stats Grid */}
+        <section className={styles.statsGrid} aria-label="Key Dashboard Metrics">
           <Link href="/dashboard/careers" className={styles.statCard}>
             <div className={styles.statIcon} style={{ background: "linear-gradient(135deg, #eef2ff, #e0e7ff)" }}>🎯</div>
             <div className={styles.statInfo}>
-              <span className={styles.statValue}>{dashboardData.roleCount}</span>
+              <span className={styles.statValue}>{loading ? "…" : dashboardData.roleCount}</span>
               <span className={styles.statLabel}>Target Career Paths</span>
             </div>
           </Link>
           <Link href="/dashboard/roadmap" className={styles.statCard}>
             <div className={styles.statIcon} style={{ background: "linear-gradient(135deg, #fef3c7, #fde68a)" }}>📊</div>
             <div className={styles.statInfo}>
-              <span className={styles.statValue}>{dashboardData.skillGaps.length}</span>
+              <span className={styles.statValue}>{loading ? "…" : dashboardData.skillGaps.length}</span>
               <span className={styles.statLabel}>Skill Gaps to Close</span>
             </div>
           </Link>
           <Link href="/dashboard/resume" className={styles.statCard}>
             <div className={styles.statIcon} style={{ background: "linear-gradient(135deg, #d1fae5, #a7f3d0)" }}>📄</div>
             <div className={styles.statInfo}>
-              <span className={styles.statValue}>{dashboardData.resumeScore === null ? "—" : `${dashboardData.resumeScore}%`}</span>
+              <span className={styles.statValue}>
+                {loading ? "…" : dashboardData.resumeScore === null ? "—" : `${dashboardData.resumeScore}%`}
+              </span>
               <span className={styles.statLabel}>Resume ATS Score</span>
             </div>
           </Link>
           <Link href="/dashboard/opportunities" className={styles.statCard}>
             <div className={styles.statIcon} style={{ background: "linear-gradient(135deg, #fce7f3, #fbcfe8)" }}>💼</div>
             <div className={styles.statInfo}>
-              <span className={styles.statValue}>{dashboardData.opportunitiesCount}</span>
+              <span className={styles.statValue}>{loading ? "…" : dashboardData.opportunitiesCount}</span>
               <span className={styles.statLabel}>Live Opportunities</span>
             </div>
           </Link>
-        </div>
+        </section>
 
-        <div className={styles.contentGrid}>
+        {/* Content Grid */}
+        <section className={styles.contentGrid}>
+          {/* Career Recommendations Card */}
           <div className={styles.contentCard}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h2 className={styles.cardTitle} style={{ margin: 0 }}>Top Career Recommendations</h2>
-              <Link href="/dashboard/careers" style={{ fontSize: "0.875rem", color: "var(--primary-600)", fontWeight: 600, textDecoration: "none" }}>View All →</Link>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>Top Career Recommendations</h2>
+              <Link href="/dashboard/careers" className={styles.cardActionLink}>
+                Explore All →
+              </Link>
             </div>
-                        <div className={styles.careerList}>
-              {dashboardData.recommendations.slice(0, 3).map((recommendation) => (
-                <Link key={recommendation.roleId} href="/dashboard/careers" className={styles.careerItem} style={{ textDecoration: "none" }}>
-                  <span className={styles.careerEmoji}>🎯</span>
-                  <div className={styles.careerInfo}>
-                    <h3>{recommendation.title}</h3>
-                    <p>{recommendation.matchScore}% match · {recommendation.demandLevel || "Demand not listed"}</p>
-                  </div>
-                  <span className={styles.careerScore}>{recommendation.matchScore}%</span>
-                </Link>
-              ))}
-              {dashboardData.recommendations.length === 0 && <p>Add skills to your profile to see career recommendations.</p>}
+            <div className={styles.careerList}>
+              {dashboardData.recommendations.length > 0 ? (
+                dashboardData.recommendations.slice(0, 3).map((rec) => (
+                  <Link
+                    key={rec.roleId || rec.title}
+                    href="/dashboard/careers"
+                    className={styles.careerItem}
+                  >
+                    <span className={styles.careerEmoji}>🎯</span>
+                    <div className={styles.careerInfo}>
+                      <h3>{rec.title}</h3>
+                      <p>{rec.matchScore}% Match · {rec.demandLevel || "In Demand"}</p>
+                    </div>
+                    <span className={styles.careerScoreBadge}>{rec.matchScore}%</span>
+                  </Link>
+                ))
+              ) : (
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyStateIcon}>💡</div>
+                  <h3 className={styles.emptyStateTitle}>No Career Recommendations Yet</h3>
+                  <p className={styles.emptyStateText}>
+                    Add your technical skills and academics to your student profile to generate personalized AI recommendations.
+                  </p>
+                  <Link href="/dashboard/profile" className="btn btn-primary btn-sm">
+                    Complete Student Profile
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
 
+          {/* Critical Skill Gaps Card */}
           <div className={styles.contentCard}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h2 className={styles.cardTitle} style={{ margin: 0 }}>Critical Skill Gaps</h2>
-              <Link href="/dashboard/roadmap" style={{ fontSize: "0.875rem", color: "var(--primary-600)", fontWeight: 600, textDecoration: "none" }}>Start Learning →</Link>
+            <div className={styles.cardHeader}>
+              <h2 className={styles.cardTitle}>Critical Skill Gaps</h2>
+              <Link href="/dashboard/roadmap" className={styles.cardActionLink}>
+                Generate Roadmap →
+              </Link>
             </div>
             <div className={styles.skillList}>
-              {dashboardData.skillGaps.slice(0, 5).map((gap, i) => {
-                const priority = gap.priority || "medium";
-                const color = priority === "critical" || priority === "high" ? "#ef4444" : priority === "medium" ? "#f59e0b" : "#10b981";
-                return (
-                <div key={i} className={styles.skillItem}>
-                  <span className={styles.skillName}>{gap.skill_name}</span>
-                  <span className={styles.skillPriority} style={{ color }}>{priority}</span>
+              {dashboardData.skillGaps.length > 0 ? (
+                dashboardData.skillGaps.slice(0, 5).map((gap, i) => {
+                  const priority = (gap.priority || "medium").toLowerCase();
+                  const badgeClass =
+                    priority === "critical" || priority === "high"
+                      ? "badge-danger"
+                      : priority === "medium"
+                      ? "badge-warning"
+                      : "badge-success";
+
+                  return (
+                    <div key={gap.id || i} className={styles.skillItem}>
+                      <span className={styles.skillName}>{gap.skill_name}</span>
+                      <span className={`badge ${badgeClass}`}>
+                        {priority}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className={styles.emptyState}>
+                  <div className={styles.emptyStateIcon}>🎯</div>
+                  <h3 className={styles.emptyStateTitle}>All Skill Gaps Clear</h3>
+                  <p className={styles.emptyStateText}>
+                    Select a target career path to analyze competency benchmarks and uncover learning priorities.
+                  </p>
+                  <Link href="/dashboard/careers" className="btn btn-secondary btn-sm">
+                    Explore Career Roles
+                  </Link>
                 </div>
-                ); })}
+              )}
             </div>
           </div>
-        </div>
+        </section>
       </main>
     </div>
   );

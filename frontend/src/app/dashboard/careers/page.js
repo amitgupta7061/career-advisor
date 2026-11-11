@@ -14,7 +14,7 @@ export default function CareersPage() {
   const [loading, setLoading] = useState(true);
   const [recommending, setRecommending] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [analyzingGap, setAnalyzingGap] = useState(false);
+  const [, setAnalyzingGap] = useState(false);
   const [error, setError] = useState("");
   const [aiProvider, setAiProvider] = useState(null);
   const [aiSummary, setAiSummary] = useState("");
@@ -47,7 +47,7 @@ export default function CareersPage() {
             recs = recRes.data;
           }
         } catch {
-          // If no previous recommendations, that's fine
+          // If no previous recommendations, proceed
         }
 
         // Map roles with recommendations if available
@@ -100,7 +100,6 @@ export default function CareersPage() {
       if (res.success && res.data) {
         setSkillGapAnalysis(res.data);
       }
-      // Load past history for this role
       try {
         const histRes = await api.getSkillGapHistory(roleId);
         if (histRes.success) {
@@ -200,7 +199,7 @@ export default function CareersPage() {
 
       <main className={styles.mainContent}>
         <header className={styles.topBar}>
-          <div>
+          <div className={styles.pageHeader}>
             <h1 className={styles.pageTitle}>Career Paths & Skill Gap Analysis 🧭</h1>
             <p className={styles.pageSubtitle}>
               Deterministic competency evaluation, proficiency gap diagnosis, and AI action roadmaps
@@ -210,24 +209,10 @@ export default function CareersPage() {
             <button
               onClick={runAIRecommendations}
               disabled={recommending}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "12px 22px",
-                borderRadius: "12px",
-                border: "none",
-                background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
-                color: "#ffffff",
-                fontWeight: 600,
-                fontSize: "0.9375rem",
-                cursor: recommending ? "wait" : "pointer",
-                boxShadow: "0 4px 14px rgba(99, 102, 241, 0.35)",
-                transition: "all 0.2s ease",
-              }}
+              className="btn btn-primary"
             >
               <span>{recommending ? "⏳" : "⚡"}</span>
-              <span>{recommending ? "Analyzing Profile with AI..." : "Run AI Career Recommendation"}</span>
+              <span>{recommending ? "Analyzing Profile with AI…" : "Run AI Recommendation"}</span>
             </button>
           </div>
         </header>
@@ -235,45 +220,28 @@ export default function CareersPage() {
         {/* AI Provider Banner if generated */}
         {aiProvider && (
           <div
+            className={styles.calloutBanner}
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "16px 20px",
-              borderRadius: "14px",
-              background: fallbackNotice ? "#fffbeb" : "#eff6ff",
-              border: fallbackNotice ? "1px solid #fef3c7" : "1px solid #bfdbfe",
-              marginBottom: "24px",
-              gap: "16px",
+              background: fallbackNotice ? "var(--warning-50)" : "var(--primary-50)",
+              border: fallbackNotice ? "1px solid var(--warning-200)" : "1px solid var(--primary-200)",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-              <span style={{ fontSize: "1.75rem" }}>🤖</span>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
+              <span style={{ fontSize: "1.75rem", lineHeight: 1 }}>🤖</span>
               <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "#1e3a8a" }}>
-                    Provider: {aiProvider}
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--primary-900)" }}>
+                    AI Provider: {aiProvider}
                   </span>
-                  <span
-                    style={{
-                      padding: "2px 8px",
-                      borderRadius: "12px",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      background: "#dbeafe",
-                      color: "#1d4ed8",
-                    }}
-                  >
-                    Active
-                  </span>
+                  <span className="badge badge-primary">Active</span>
                 </div>
                 {aiSummary && (
-                  <p style={{ margin: "4px 0 0 0", fontSize: "0.875rem", color: "#334155" }}>
+                  <p style={{ margin: "4px 0 0 0", fontSize: "0.875rem", color: "var(--text-secondary)" }}>
                     {aiSummary}
                   </p>
                 )}
                 {fallbackNotice && (
-                  <p style={{ margin: "4px 0 0 0", fontSize: "0.8125rem", color: "#b45309" }}>
+                  <p style={{ margin: "4px 0 0 0", fontSize: "0.8125rem", color: "var(--warning-600)", fontWeight: 500 }}>
                     ⚠️ {fallbackNotice}
                   </p>
                 )}
@@ -283,66 +251,52 @@ export default function CareersPage() {
         )}
 
         {/* Search & Domain Filter Bar */}
-        <div style={{ display: "flex", gap: "12px", marginBottom: "24px", flexWrap: "wrap", alignItems: "center" }}>
+        <div className={styles.filterBar}>
           <input
             type="text"
-            placeholder="Search career roles or skills..."
+            placeholder="Search career roles or skills…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{
-              flex: "1",
-              minWidth: "260px",
-              padding: "12px 16px",
-              borderRadius: "12px",
-              border: "1px solid var(--border-color)",
-              background: "var(--bg-card)",
-              color: "var(--text-primary)",
-              fontSize: "0.9375rem",
-              outline: "none",
-            }}
+            className="input-field"
+            style={{ flex: 1, minWidth: "240px", maxWidth: "420px" }}
           />
-          <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "4px" }}>
-            {domains.map((dom) => (
-              <button
-                key={dom}
-                onClick={() => setSelectedDomain(dom)}
-                style={{
-                  padding: "8px 16px",
-                  borderRadius: "20px",
-                  border: selectedDomain === dom ? "1px solid var(--primary-600)" : "1px solid var(--border-color)",
-                  background: selectedDomain === dom ? "var(--primary-600)" : "var(--bg-card)",
-                  color: selectedDomain === dom ? "#ffffff" : "var(--text-secondary)",
-                  fontWeight: selectedDomain === dom ? 600 : 500,
-                  fontSize: "0.875rem",
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
-                }}
-              >
-                {dom}
-              </button>
-            ))}
+          <div className={styles.pillsScroll}>
+            {domains.map((dom) => {
+              const isSelected = selectedDomain === dom;
+              return (
+                <button
+                  key={dom}
+                  onClick={() => setSelectedDomain(dom)}
+                  className={`btn btn-sm ${isSelected ? "btn-primary" : "btn-outline"}`}
+                  style={{ borderRadius: "var(--radius-full)" }}
+                >
+                  {dom}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Two-Column Grid: Roles List + Deep-Dive Skill Gap Diagnosis */}
-        <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1.3fr", gap: "24px" }}>
+        {/* Responsive Layout: Roles List + Deep-Dive Skill Gap Diagnosis */}
+        <div className={styles.careersLayout}>
           {/* Roles List */}
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {loading && <p>Loading career paths and catalog...</p>}
-            {error && (
-              <div
-                style={{
-                  padding: "16px",
-                  borderRadius: "12px",
-                  background: "#fee2e2",
-                  color: "#991b1b",
-                  fontSize: "0.875rem",
-                }}
-              >
-                {error}
+            {loading && (
+              <div className="card" style={{ padding: "32px", textAlign: "center" }}>
+                <span className="spinner" style={{ color: "var(--primary-600)", marginBottom: "8px" }} />
+                <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>Loading career catalog and recommendations…</p>
               </div>
             )}
-            {!loading && !filtered.length && <p>No career roles match your criteria.</p>}
+            {error && (
+              <div style={{ padding: "14px 18px", borderRadius: "var(--radius-md)", background: "var(--danger-50)", border: "1px solid var(--danger-200)", color: "var(--danger-600)", fontSize: "0.875rem" }}>
+                ⚠️ {error}
+              </div>
+            )}
+            {!loading && !filtered.length && (
+              <div className="card" style={{ padding: "32px", textAlign: "center", color: "var(--text-secondary)" }}>
+                No career roles match your search or domain filter.
+              </div>
+            )}
 
             {filtered.map((role) => {
               const isSelected = activeRole?.id === role.id;
@@ -352,86 +306,50 @@ export default function CareersPage() {
                 <div
                   key={role.id}
                   onClick={() => handleSelectRole(role)}
+                  className="card"
                   style={{
                     padding: "20px",
-                    borderRadius: "16px",
-                    background: "var(--bg-card)",
-                    border: isSelected ? "2px solid var(--primary-600)" : "1px solid var(--border-color)",
                     cursor: "pointer",
-                    transition: "all 0.2s ease",
-                    boxShadow: isSelected ? "0 8px 24px rgba(99, 102, 241, 0.15)" : "var(--shadow-sm)",
+                    border: isSelected ? "2px solid var(--primary-600)" : "1px solid var(--border-color)",
+                    boxShadow: isSelected ? "0 8px 24px rgba(99, 102, 241, 0.16)" : "var(--shadow-card)",
+                    background: isSelected ? "var(--surface-primary)" : "var(--surface-primary)",
                   }}
                 >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "flex-start",
-                      marginBottom: "12px",
-                    }}
-                  >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px", gap: "12px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <span style={{ fontSize: "2rem" }}>{role.icon}</span>
+                      <span style={{ fontSize: "2rem", lineHeight: 1 }}>{role.icon}</span>
                       <div>
-                        <h3 style={{ margin: 0, fontSize: "1.125rem", color: "var(--text-primary)" }}>{role.title}</h3>
-                        <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>{role.domain}</span>
+                        <h3 style={{ margin: 0, fontSize: "1.0625rem", color: "var(--text-primary)", fontWeight: 700 }}>
+                          {role.title}
+                        </h3>
+                        <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
+                          {role.domain}
+                        </span>
                       </div>
                     </div>
                     <div>
                       {hasScore ? (
                         <span
-                          style={{
-                            display: "inline-block",
-                            padding: "4px 12px",
-                            borderRadius: "20px",
-                            fontSize: "0.8125rem",
-                            fontWeight: 700,
-                            background: role.matchScore >= 80 ? "#d1fae5" : role.matchScore >= 50 ? "#e0e7ff" : "#fee2e2",
-                            color: role.matchScore >= 80 ? "#065f46" : role.matchScore >= 50 ? "#3730a3" : "#991b1b",
-                          }}
+                          className={`badge ${
+                            role.matchScore >= 80 ? "badge-success" : role.matchScore >= 50 ? "badge-primary" : "badge-danger"
+                          }`}
+                          style={{ fontSize: "0.8125rem", padding: "4px 10px" }}
                         >
                           {role.matchScore}% Match
                         </span>
                       ) : (
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "4px 10px",
-                            borderRadius: "20px",
-                            fontSize: "0.75rem",
-                            background: "var(--bg-secondary)",
-                            color: "var(--text-muted)",
-                          }}
-                        >
-                          Select to Analyze
-                        </span>
+                        <span className="badge badge-neutral">Select to Analyze</span>
                       )}
                     </div>
                   </div>
 
-                  <p
-                    style={{
-                      fontSize: "0.875rem",
-                      color: "var(--text-secondary)",
-                      margin: "0 0 14px 0",
-                      lineHeight: "1.5",
-                    }}
-                  >
+                  <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", margin: "0 0 14px 0", lineHeight: "1.5" }}>
                     {role.description}
                   </p>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      paddingTop: "12px",
-                      borderTop: "1px solid var(--border-color)",
-                      fontSize: "0.875rem",
-                    }}
-                  >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "12px", borderTop: "1px solid var(--border-light)", fontSize: "0.875rem", flexWrap: "wrap", gap: "8px" }}>
                     <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>💰 {role.salary}</span>
-                    <span style={{ color: "#10b981", fontWeight: 600 }}>📈 {role.growth}</span>
+                    <span style={{ color: "var(--success-600)", fontWeight: 600 }}>📈 {role.growth}</span>
                   </div>
                 </div>
               );
@@ -440,29 +358,16 @@ export default function CareersPage() {
 
           {/* Selected Role Skill Gap Analysis Panel */}
           {activeRole && (
-            <div
-              style={{
-                position: "sticky",
-                top: "24px",
-                alignSelf: "start",
-                padding: "24px",
-                borderRadius: "20px",
-                background: "var(--bg-card)",
-                border: "1px solid var(--border-color)",
-                boxShadow: "var(--shadow-md)",
-                maxHeight: "calc(100vh - 48px)",
-                overflowY: "auto",
-              }}
-            >
+            <div className={`card ${styles.stickyPanel}`} style={{ padding: "24px" }}>
               {/* Header */}
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px", gap: "12px", flexWrap: "wrap" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                  <span style={{ fontSize: "2.25rem" }}>{activeRole.icon}</span>
+                  <span style={{ fontSize: "2.25rem", lineHeight: 1 }}>{activeRole.icon}</span>
                   <div>
-                    <h2 style={{ margin: 0, fontSize: "1.25rem", color: "var(--text-primary)" }}>
+                    <h2 style={{ margin: 0, fontSize: "1.25rem", color: "var(--text-primary)", fontWeight: 700 }}>
                       {activeRole.title}
                     </h2>
-                    <span style={{ fontSize: "0.8125rem", color: "var(--text-muted)" }}>
+                    <span style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
                       AI-Powered Skill Gap Diagnosis
                     </span>
                   </div>
@@ -470,16 +375,7 @@ export default function CareersPage() {
 
                 <button
                   onClick={() => setShowHistory(!showHistory)}
-                  style={{
-                    padding: "6px 12px",
-                    borderRadius: "8px",
-                    border: "1px solid var(--border-color)",
-                    background: showHistory ? "var(--primary-50)" : "transparent",
-                    color: "var(--primary-600)",
-                    fontSize: "0.8125rem",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                  }}
+                  className="btn btn-outline btn-sm"
                 >
                   {showHistory ? "Hide History" : `History (${analysisHistory.length})`}
                 </button>
@@ -487,20 +383,12 @@ export default function CareersPage() {
 
               {/* Progress History Drawer if opened */}
               {showHistory && (
-                <div
-                  style={{
-                    marginBottom: "20px",
-                    padding: "16px",
-                    borderRadius: "12px",
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                  }}
-                >
-                  <h4 style={{ margin: "0 0 10px 0", fontSize: "0.875rem", color: "#334155" }}>
+                <div style={{ marginBottom: "20px", padding: "14px", borderRadius: "var(--radius-md)", background: "var(--surface-secondary)", border: "1px solid var(--border-light)" }}>
+                  <h4 style={{ margin: "0 0 10px 0", fontSize: "0.875rem", color: "var(--text-primary)", fontWeight: 600 }}>
                     📊 Historical Improvement Snapshots:
                   </h4>
                   {analysisHistory.length === 0 ? (
-                    <p style={{ margin: 0, fontSize: "0.8125rem", color: "var(--text-muted)" }}>
+                    <p style={{ margin: 0, fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
                       No prior evaluations recorded for this role yet.
                     </p>
                   ) : (
@@ -513,20 +401,20 @@ export default function CareersPage() {
                             justifyContent: "space-between",
                             alignItems: "center",
                             padding: "8px 12px",
-                            borderRadius: "8px",
-                            background: "#ffffff",
-                            border: "1px solid #f1f5f9",
+                            borderRadius: "var(--radius-sm)",
+                            background: "var(--surface-primary)",
+                            border: "1px solid var(--border-light)",
                             fontSize: "0.8125rem",
                           }}
                         >
-                          <span style={{ color: "#64748b" }}>
-                            {new Date(item.created_at).toLocaleDateString()} {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          <span style={{ color: "var(--text-secondary)" }}>
+                            {new Date(item.created_at).toLocaleDateString()} {new Date(item.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </span>
                           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-                            <span style={{ fontWeight: 700, color: "#10b981" }}>
+                            <span style={{ fontWeight: 700, color: "var(--success-600)" }}>
                               {item.overall_match_percentage}% Match
                             </span>
-                            <span style={{ color: "#ef4444" }}>
+                            <span style={{ color: "var(--danger-500)", fontWeight: 600 }}>
                               {item.overall_gap_percentage}% Gap
                             </span>
                           </div>
@@ -539,31 +427,23 @@ export default function CareersPage() {
 
               {/* Deterministic Match & Gap Meters */}
               {skillGapAnalysis && (
-                <div
-                  style={{
-                    marginBottom: "20px",
-                    padding: "16px",
-                    borderRadius: "14px",
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                  }}
-                >
+                <div style={{ marginBottom: "20px", padding: "16px", borderRadius: "var(--radius-lg)", background: "var(--surface-secondary)", border: "1px solid var(--border-light)" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "12px" }}>
                     <div>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                        <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#065f46" }}>
+                        <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--success-700)" }}>
                           Skill Match
                         </span>
-                        <span style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#065f46" }}>
+                        <span style={{ fontSize: "0.9375rem", fontWeight: 700, color: "var(--success-700)" }}>
                           {skillGapAnalysis.metrics.overallMatchPercentage}%
                         </span>
                       </div>
-                      <div style={{ width: "100%", height: "8px", background: "#e2e8f0", borderRadius: "4px", overflow: "hidden" }}>
+                      <div style={{ width: "100%", height: "8px", background: "var(--neutral-200)", borderRadius: "4px", overflow: "hidden" }}>
                         <div
                           style={{
                             width: `${skillGapAnalysis.metrics.overallMatchPercentage}%`,
                             height: "100%",
-                            background: "#10b981",
+                            background: "var(--success-500)",
                             borderRadius: "4px",
                           }}
                         />
@@ -572,19 +452,19 @@ export default function CareersPage() {
 
                     <div>
                       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
-                        <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "#991b1b" }}>
+                        <span style={{ fontSize: "0.8125rem", fontWeight: 600, color: "var(--danger-600)" }}>
                           Skill Gap
                         </span>
-                        <span style={{ fontSize: "0.9375rem", fontWeight: 700, color: "#991b1b" }}>
+                        <span style={{ fontSize: "0.9375rem", fontWeight: 700, color: "var(--danger-600)" }}>
                           {skillGapAnalysis.metrics.overallGapPercentage}%
                         </span>
                       </div>
-                      <div style={{ width: "100%", height: "8px", background: "#e2e8f0", borderRadius: "4px", overflow: "hidden" }}>
+                      <div style={{ width: "100%", height: "8px", background: "var(--neutral-200)", borderRadius: "4px", overflow: "hidden" }}>
                         <div
                           style={{
                             width: `${skillGapAnalysis.metrics.overallGapPercentage}%`,
                             height: "100%",
-                            background: "#ef4444",
+                            background: "var(--danger-500)",
                             borderRadius: "4px",
                           }}
                         />
@@ -594,8 +474,8 @@ export default function CareersPage() {
 
                   {/* AI Executive Summary */}
                   {skillGapAnalysis.insights?.executiveSummary && (
-                    <div style={{ paddingTop: "10px", borderTop: "1px solid #e2e8f0" }}>
-                      <p style={{ margin: 0, fontSize: "0.8125rem", color: "#475569", lineHeight: "1.5" }}>
+                    <div style={{ paddingTop: "10px", borderTop: "1px solid var(--border-light)" }}>
+                      <p style={{ margin: 0, fontSize: "0.8125rem", color: "var(--text-secondary)", lineHeight: "1.5" }}>
                         💡 {skillGapAnalysis.insights.executiveSummary}
                       </p>
                     </div>
@@ -609,24 +489,26 @@ export default function CareersPage() {
                   display: "flex",
                   gap: "6px",
                   padding: "4px",
-                  background: "#f1f5f9",
-                  borderRadius: "12px",
+                  background: "var(--surface-tertiary)",
+                  borderRadius: "var(--radius-md)",
                   marginBottom: "18px",
+                  overflowX: "auto",
                 }}
               >
                 <button
                   onClick={() => setGapActiveTab("missing")}
                   style={{
                     flex: 1,
+                    minWidth: "90px",
                     padding: "8px 10px",
-                    borderRadius: "8px",
+                    borderRadius: "var(--radius-sm)",
                     border: "none",
-                    background: gapActiveTab === "missing" ? "#ffffff" : "transparent",
-                    color: gapActiveTab === "missing" ? "#991b1b" : "#64748b",
+                    background: gapActiveTab === "missing" ? "var(--surface-primary)" : "transparent",
+                    color: gapActiveTab === "missing" ? "var(--danger-600)" : "var(--text-secondary)",
                     fontWeight: 600,
                     fontSize: "0.8125rem",
                     cursor: "pointer",
-                    boxShadow: gapActiveTab === "missing" ? "0 2px 4px rgba(0,0,0,0.05)" : "none",
+                    boxShadow: gapActiveTab === "missing" ? "var(--shadow-xs)" : "none",
                   }}
                 >
                   ⚠️ Missing ({skillGapAnalysis?.metrics.missingCount || 0})
@@ -636,15 +518,16 @@ export default function CareersPage() {
                   onClick={() => setGapActiveTab("improving")}
                   style={{
                     flex: 1,
+                    minWidth: "90px",
                     padding: "8px 10px",
-                    borderRadius: "8px",
+                    borderRadius: "var(--radius-sm)",
                     border: "none",
-                    background: gapActiveTab === "improving" ? "#ffffff" : "transparent",
-                    color: gapActiveTab === "improving" ? "#b45309" : "#64748b",
+                    background: gapActiveTab === "improving" ? "var(--surface-primary)" : "transparent",
+                    color: gapActiveTab === "improving" ? "var(--warning-600)" : "var(--text-secondary)",
                     fontWeight: 600,
                     fontSize: "0.8125rem",
                     cursor: "pointer",
-                    boxShadow: gapActiveTab === "improving" ? "0 2px 4px rgba(0,0,0,0.05)" : "none",
+                    boxShadow: gapActiveTab === "improving" ? "var(--shadow-xs)" : "none",
                   }}
                 >
                   📈 Improve ({skillGapAnalysis?.metrics.improvingCount || 0})
@@ -654,15 +537,16 @@ export default function CareersPage() {
                   onClick={() => setGapActiveTab("meeting")}
                   style={{
                     flex: 1,
+                    minWidth: "90px",
                     padding: "8px 10px",
-                    borderRadius: "8px",
+                    borderRadius: "var(--radius-sm)",
                     border: "none",
-                    background: gapActiveTab === "meeting" ? "#ffffff" : "transparent",
-                    color: gapActiveTab === "meeting" ? "#065f46" : "#64748b",
+                    background: gapActiveTab === "meeting" ? "var(--surface-primary)" : "transparent",
+                    color: gapActiveTab === "meeting" ? "var(--success-700)" : "var(--text-secondary)",
                     fontWeight: 600,
                     fontSize: "0.8125rem",
                     cursor: "pointer",
-                    boxShadow: gapActiveTab === "meeting" ? "0 2px 4px rgba(0,0,0,0.05)" : "none",
+                    boxShadow: gapActiveTab === "meeting" ? "var(--shadow-xs)" : "none",
                   }}
                 >
                   ✅ Ready ({skillGapAnalysis?.metrics.meetingCount || 0})
@@ -672,15 +556,16 @@ export default function CareersPage() {
                   onClick={() => setGapActiveTab("roadmap")}
                   style={{
                     flex: 1,
+                    minWidth: "90px",
                     padding: "8px 10px",
-                    borderRadius: "8px",
+                    borderRadius: "var(--radius-sm)",
                     border: "none",
-                    background: gapActiveTab === "roadmap" ? "#ffffff" : "transparent",
-                    color: gapActiveTab === "roadmap" ? "#4f46e5" : "#64748b",
+                    background: gapActiveTab === "roadmap" ? "var(--surface-primary)" : "transparent",
+                    color: gapActiveTab === "roadmap" ? "var(--primary-700)" : "var(--text-secondary)",
                     fontWeight: 600,
                     fontSize: "0.8125rem",
                     cursor: "pointer",
-                    boxShadow: gapActiveTab === "roadmap" ? "0 2px 4px rgba(0,0,0,0.05)" : "none",
+                    boxShadow: gapActiveTab === "roadmap" ? "var(--shadow-xs)" : "none",
                   }}
                 >
                   🗺️ Roadmap
@@ -691,7 +576,7 @@ export default function CareersPage() {
               {gapActiveTab === "missing" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
                   {skillGapAnalysis?.missingSkills.length === 0 ? (
-                    <p style={{ fontSize: "0.875rem", color: "#065f46" }}>
+                    <p style={{ fontSize: "0.875rem", color: "var(--success-700)", padding: "12px", background: "var(--success-50)", borderRadius: "var(--radius-md)" }}>
                       🎉 Outstanding! You have no missing core skills for this role.
                     </p>
                   ) : (
@@ -700,48 +585,30 @@ export default function CareersPage() {
                         key={idx}
                         style={{
                           padding: "12px 14px",
-                          borderRadius: "10px",
-                          background: "#fff5f5",
-                          border: "1px solid #fed7d7",
+                          borderRadius: "var(--radius-md)",
+                          background: "var(--danger-50)",
+                          border: "1px solid var(--danger-100)",
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                          <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "#991b1b" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", flexWrap: "wrap", gap: "6px" }}>
+                          <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--danger-600)" }}>
                             {s.name}
                           </span>
                           <div style={{ display: "flex", gap: "6px" }}>
-                            <span
-                              style={{
-                                padding: "2px 8px",
-                                borderRadius: "10px",
-                                fontSize: "0.75rem",
-                                fontWeight: 700,
-                                background: s.priority === "critical" ? "#ef4444" : "#f97316",
-                                color: "#ffffff",
-                              }}
-                            >
+                            <span className="badge badge-danger">
                               {s.priority?.toUpperCase()} PRIORITY
                             </span>
-                            <span
-                              style={{
-                                padding: "2px 8px",
-                                borderRadius: "10px",
-                                fontSize: "0.75rem",
-                                fontWeight: 600,
-                                background: "#fee2e2",
-                                color: "#991b1b",
-                              }}
-                            >
+                            <span className="badge badge-neutral">
                               Req: {s.requiredLevelLabel}
                             </span>
                           </div>
                         </div>
 
-                        <p style={{ margin: "4px 0", fontSize: "0.8125rem", color: "#4a5568", lineHeight: "1.4" }}>
+                        <p style={{ margin: "4px 0", fontSize: "0.8125rem", color: "var(--text-secondary)", lineHeight: "1.4" }}>
                           {s.industrySignificance}
                         </p>
 
-                        <div style={{ marginTop: "6px", fontSize: "0.75rem", color: "#047857", fontWeight: 600 }}>
+                        <div style={{ marginTop: "6px", fontSize: "0.75rem", color: "var(--success-700)", fontWeight: 600 }}>
                           🎯 Action: {s.recommendedAction}
                         </div>
                       </div>
@@ -754,7 +621,7 @@ export default function CareersPage() {
               {gapActiveTab === "improving" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
                   {skillGapAnalysis?.improvingSkills.length === 0 ? (
-                    <p style={{ fontSize: "0.875rem", color: "#065f46" }}>
+                    <p style={{ fontSize: "0.875rem", color: "var(--success-700)", padding: "12px", background: "var(--success-50)", borderRadius: "var(--radius-md)" }}>
                       All your existing skills already meet or exceed the required level!
                     </p>
                   ) : (
@@ -763,34 +630,25 @@ export default function CareersPage() {
                         key={idx}
                         style={{
                           padding: "12px 14px",
-                          borderRadius: "10px",
-                          background: "#fffbeb",
-                          border: "1px solid #fef3c7",
+                          borderRadius: "var(--radius-md)",
+                          background: "var(--warning-50)",
+                          border: "1px solid var(--warning-100)",
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                          <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "#92400e" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px", flexWrap: "wrap", gap: "6px" }}>
+                          <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--warning-600)" }}>
                             {s.name}
                           </span>
-                          <span
-                            style={{
-                              padding: "2px 8px",
-                              borderRadius: "10px",
-                              fontSize: "0.75rem",
-                              fontWeight: 600,
-                              background: "#fef3c7",
-                              color: "#92400e",
-                            }}
-                          >
-                            Current: {s.currentLevelLabel} ➔ Target: {s.requiredLevelLabel}
+                          <span className="badge badge-warning">
+                            {s.currentLevelLabel} ➔ {s.requiredLevelLabel}
                           </span>
                         </div>
 
-                        <p style={{ margin: "4px 0", fontSize: "0.8125rem", color: "#4a5568", lineHeight: "1.4" }}>
+                        <p style={{ margin: "4px 0", fontSize: "0.8125rem", color: "var(--text-secondary)", lineHeight: "1.4" }}>
                           {s.industrySignificance}
                         </p>
 
-                        <div style={{ marginTop: "6px", fontSize: "0.75rem", color: "#b45309", fontWeight: 600 }}>
+                        <div style={{ marginTop: "6px", fontSize: "0.75rem", color: "var(--warning-600)", fontWeight: 600 }}>
                           🚀 Upgrade Step: {s.recommendedAction}
                         </div>
                       </div>
@@ -803,7 +661,7 @@ export default function CareersPage() {
               {gapActiveTab === "meeting" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "20px" }}>
                   {skillGapAnalysis?.meetingSkills.length === 0 ? (
-                    <p style={{ fontSize: "0.875rem", color: "#64748b" }}>
+                    <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", padding: "12px" }}>
                       No verified matching skills yet. Add your current skills in your Profile.
                     </p>
                   ) : (
@@ -815,29 +673,22 @@ export default function CareersPage() {
                           justifyContent: "space-between",
                           alignItems: "center",
                           padding: "10px 14px",
-                          borderRadius: "10px",
-                          background: "#f0fdf4",
-                          border: "1px solid #bbf7d0",
+                          borderRadius: "var(--radius-md)",
+                          background: "var(--success-50)",
+                          border: "1px solid var(--success-100)",
+                          flexWrap: "wrap",
+                          gap: "8px",
                         }}
                       >
                         <div>
-                          <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "#065f46" }}>
+                          <span style={{ fontWeight: 700, fontSize: "0.9375rem", color: "var(--success-700)" }}>
                             ✅ {s.name}
                           </span>
-                          <span style={{ display: "block", fontSize: "0.75rem", color: "#166534" }}>
+                          <span style={{ display: "block", fontSize: "0.75rem", color: "var(--success-600)" }}>
                             Your Level: {s.currentLevelLabel} (Required: {s.requiredLevelLabel})
                           </span>
                         </div>
-                        <span
-                          style={{
-                            padding: "2px 8px",
-                            borderRadius: "10px",
-                            fontSize: "0.75rem",
-                            fontWeight: 700,
-                            background: s.status === "exceeding" ? "#dcfce7" : "#e0e7ff",
-                            color: s.status === "exceeding" ? "#15803d" : "#3730a3",
-                          }}
-                        >
+                        <span className="badge badge-success">
                           {s.status === "exceeding" ? "Exceeds Target" : "Meets Target"}
                         </span>
                       </div>
@@ -851,35 +702,35 @@ export default function CareersPage() {
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "20px" }}>
                   {skillGapAnalysis?.insights?.phasedRoadmap ? (
                     <>
-                      <div style={{ padding: "12px", borderRadius: "10px", background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                        <h5 style={{ margin: "0 0 4px 0", fontSize: "0.8125rem", color: "#6366f1" }}>
+                      <div style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "var(--surface-secondary)", border: "1px solid var(--border-light)" }}>
+                        <h5 style={{ margin: "0 0 4px 0", fontSize: "0.8125rem", color: "var(--primary-600)", fontWeight: 700 }}>
                           Phase 1: Immediate Foundations (Weeks 1-4)
                         </h5>
-                        <p style={{ margin: 0, fontSize: "0.8125rem", color: "#334155" }}>
+                        <p style={{ margin: 0, fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
                           {skillGapAnalysis.insights.phasedRoadmap.immediate}
                         </p>
                       </div>
 
-                      <div style={{ padding: "12px", borderRadius: "10px", background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                        <h5 style={{ margin: "0 0 4px 0", fontSize: "0.8125rem", color: "#0ea5e9" }}>
+                      <div style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "var(--surface-secondary)", border: "1px solid var(--border-light)" }}>
+                        <h5 style={{ margin: "0 0 4px 0", fontSize: "0.8125rem", color: "var(--info-500)", fontWeight: 700 }}>
                           Phase 2: Tooling & Integration (Weeks 5-8)
                         </h5>
-                        <p style={{ margin: 0, fontSize: "0.8125rem", color: "#334155" }}>
+                        <p style={{ margin: 0, fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
                           {skillGapAnalysis.insights.phasedRoadmap.intermediate}
                         </p>
                       </div>
 
-                      <div style={{ padding: "12px", borderRadius: "10px", background: "#f8fafc", border: "1px solid #e2e8f0" }}>
-                        <h5 style={{ margin: "0 0 4px 0", fontSize: "0.8125rem", color: "#10b981" }}>
+                      <div style={{ padding: "12px", borderRadius: "var(--radius-md)", background: "var(--surface-secondary)", border: "1px solid var(--border-light)" }}>
+                        <h5 style={{ margin: "0 0 4px 0", fontSize: "0.8125rem", color: "var(--success-600)", fontWeight: 700 }}>
                           Phase 3: Production Capstone (Weeks 9-12)
                         </h5>
-                        <p style={{ margin: 0, fontSize: "0.8125rem", color: "#334155" }}>
+                        <p style={{ margin: 0, fontSize: "0.8125rem", color: "var(--text-secondary)" }}>
                           {skillGapAnalysis.insights.phasedRoadmap.capstone}
                         </p>
                       </div>
                     </>
                   ) : (
-                    <p style={{ fontSize: "0.8125rem", color: "#64748b" }}>Roadmap unavailable for this role.</p>
+                    <p style={{ fontSize: "0.8125rem", color: "var(--text-secondary)" }}>Roadmap unavailable for this role.</p>
                   )}
                 </div>
               )}
@@ -889,21 +740,8 @@ export default function CareersPage() {
                 type="button"
                 onClick={generateRoadmap}
                 disabled={generating || !activeRole.id}
-                style={{
-                  display: "block",
-                  width: "100%",
-                  textAlign: "center",
-                  padding: "14px 20px",
-                  borderRadius: "12px",
-                  border: "none",
-                  background: "linear-gradient(135deg, var(--primary-600), var(--primary-700))",
-                  color: "#ffffff",
-                  fontWeight: 600,
-                  fontSize: "0.9375rem",
-                  cursor: generating ? "wait" : "pointer",
-                  boxShadow: "0 4px 14px rgba(99, 102, 241, 0.35)",
-                  transition: "all 0.2s ease",
-                }}
+                className="btn btn-primary btn-lg"
+                style={{ width: "100%" }}
               >
                 {generating ? "Generating Personalized Roadmap…" : "Generate AI Learning Roadmap →"}
               </button>

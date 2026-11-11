@@ -1,16 +1,17 @@
-.sidebar {
-  width: 260px;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+/* Desktop Sidebar */
+.desktopSidebar {
+  width: 270px;
+  background: var(--surface-primary);
   border-right: 1px solid var(--border-color);
-  padding: 28px 18px;
+  padding: 24px 18px;
   display: flex;
   flex-direction: column;
   position: sticky;
   top: 0;
   height: 100vh;
-  z-index: 10;
+  z-index: var(--z-sticky);
+  flex-shrink: 0;
+  box-shadow: 1px 0 3px rgba(15, 23, 42, 0.02);
 }
 
 .sidebarLogo {
@@ -18,54 +19,80 @@
   align-items: center;
   gap: 12px;
   text-decoration: none;
-  margin-bottom: 36px;
-  padding: 0 8px;
+  margin-bottom: 24px;
+  padding: 4px 8px;
 }
 
 .logoIcon {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-card);
+  background: var(--primary-50);
   border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--primary-100);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+  flex-shrink: 0;
+}
+
+.brandInfo {
+  display: flex;
+  flex-direction: column;
 }
 
 .logoText {
-  font-family: var(--font-heading);
+  font-family: var(--font-display);
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.badgePro {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--primary-600);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.navSectionLabel {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-subtle);
+  padding: 0 12px;
+  margin-bottom: 8px;
 }
 
 .sidebarNav {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   flex: 1;
+  overflow-y: auto;
 }
 
 .navItem {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 14px;
+  padding: 10px 14px;
   border-radius: var(--radius-md);
   color: var(--text-secondary);
   text-decoration: none;
   font-size: 0.9375rem;
   font-weight: 500;
   transition: all var(--transition-fast);
+  position: relative;
 }
 
 .navItem:hover {
   color: var(--primary-600);
   background: var(--primary-50);
-  transform: translateX(3px);
+  transform: translateX(2px);
 }
 
 .navItemActive {
@@ -74,9 +101,37 @@
   font-weight: 600;
 }
 
+.navItemActive:hover {
+  background: var(--primary-100);
+  color: var(--primary-700);
+}
+
+.navIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.navLabel {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activePill {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary-600);
+  margin-left: auto;
+}
+
 .sidebarFooter {
-  padding-top: 18px;
+  padding-top: 16px;
   border-top: 1px solid var(--border-color);
+  margin-top: auto;
 }
 
 .homeLink {
@@ -86,6 +141,7 @@
   color: var(--text-muted);
   text-decoration: none;
   font-size: 0.875rem;
+  font-weight: 500;
   padding: 8px 12px;
   border-radius: var(--radius-sm);
   transition: all var(--transition-fast);
@@ -93,5 +149,153 @@
 
 .homeLink:hover {
   color: var(--text-primary);
-  background: var(--bg-card-hover);
+  background: var(--neutral-100);
+}
+
+/* Mobile Top Bar (Hidden on desktop) */
+.mobileTopBar {
+  display: none;
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  z-index: var(--z-sticky);
+}
+
+.mobileBrand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.mobileLogoIcon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-50);
+  border-radius: var(--radius-sm);
+}
+
+.mobileBrandText {
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mobileMenuButton {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 6px 10px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.mobileMenuButton:hover {
+  background: var(--neutral-100);
+}
+
+/* Backdrop */
+.backdrop {
+  display: none;
+}
+
+/* Mobile Drawer */
+.mobileDrawer {
+  display: none;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 768px) {
+  .desktopSidebar {
+    display: none;
+  }
+
+  .mobileTopBar {
+    display: flex;
+  }
+
+  .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+    z-index: var(--z-overlay);
+    animation: fadeIn var(--transition-fast);
+  }
+
+  .mobileDrawer {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(300px, 85vw);
+    background: var(--surface-primary);
+    z-index: var(--z-modal);
+    box-shadow: var(--shadow-2xl);
+    transform: translateX(-100%);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+  }
+
+  .drawerOpen {
+    transform: translateX(0);
+  }
+
+  .drawerHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .drawerTitle {
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+  }
+
+  .closeDrawerBtn {
+    background: transparent;
+    border: none;
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+  }
+
+  .closeDrawerBtn:hover {
+    background: var(--neutral-100);
+    color: var(--text-primary);
+  }
+
+  .drawerBody {
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
 }
