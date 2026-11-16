@@ -4,6 +4,11 @@
   "description": "One-Stop Personalized Career & Education Advisor (AI-Powered)",
   "private": true,
   "scripts": {
+    "dev": "node scripts/dev.js",
+    "dev:all": "node scripts/dev.js",
+    "dev:backend": "node scripts/dev.js --backend-only",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:concurrently": "concurrently -k -n \"GATEWAY,AUTH,CAREER,LEARN,OPP,RESUME,PROG,FRONT\" -c \"cyan,blue,magenta,yellow,green,red,gray,white\" \"npm run gateway\" \"npm run auth\" \"npm run career\" \"npm run learning\" \"npm run opportunity\" \"npm run resume\" \"npm run progress\" \"npm run frontend\"",
     "install:all": "npm install && cd api-gateway && npm install && cd ../auth-service && npm install && cd ../career-ai-service && npm install && cd ../learning-service && npm install && cd ../opportunity-service && npm install && cd ../resume-service && npm install && cd ../progress-service && npm install && cd ../frontend && npm install && cd ..",
     "db:init:all": "node auth-service/config/initDb.js && node career-ai-service/config/initDb.js && node learning-service/config/initDb.js && node opportunity-service/config/initDb.js && node resume-service/config/initDb.js && node progress-service/config/initDb.js",
     "gateway": "cd api-gateway && npm run dev",

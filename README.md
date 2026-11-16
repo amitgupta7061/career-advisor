@@ -86,26 +86,37 @@ npm run db:init:all
 
 ### 4. Run the Applications
 
-**Frontend:**
+#### ⚡ Run All Services With A Single Command (Recommended)
+You can start all 8 services (Gateway, 6 Microservices, and Next.js Frontend) concurrently in a single terminal with colored log prefixes:
+
 ```bash
+npm run dev
+```
+
+> **Windows Shortcuts:** You can also run `./start-dev.ps1` in PowerShell or double-click `start-dev.bat`!
+
+**Other convenient commands:**
+```bash
+# Run only the 7 backend microservices (without frontend)
+npm run dev:backend
+
+# Run only the frontend
 npm run frontend
-# Runs on http://localhost:3000
+
+# Run using concurrently package
+npm run dev:concurrently
 ```
 
-**API Gateway:**
+#### Run Individual Services Separately (Optional):
 ```bash
-npm run gateway
-# Runs on http://localhost:5000
-```
-
-**Microservices (in separate terminals or via concurrently):**
-```bash
-npm run auth         # Port 5001
-npm run career       # Port 5002
-npm run learning     # Port 5003
-npm run opportunity  # Port 5004
-npm run resume       # Port 5005
-npm run progress     # Port 5006
+npm run gateway      # Port 5000 (API Gateway)
+npm run auth         # Port 5001 (Auth & Profile)
+npm run career       # Port 5002 (Career Recommendation & Skill Gap)
+npm run learning     # Port 5003 (Roadmaps & Milestones)
+npm run opportunity  # Port 5004 (Opportunities & Applications)
+npm run resume       # Port 5005 (ATS Resume Scanner)
+npm run progress     # Port 5006 (Readiness & Badges)
+npm run frontend     # Port 3000 (Next.js Dashboard)
 ```
 
 ---

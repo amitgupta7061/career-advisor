@@ -1,0 +1,3 @@
+@echo off
+echo Starting PathFinder Development Suite...
+npm run dev
